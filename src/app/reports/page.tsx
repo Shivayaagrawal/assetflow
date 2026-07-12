@@ -1,4 +1,4 @@
-import { getReportsOverview } from "@/features/dashboard/queries";
+import { getReportsOverview } from "@/modules/reporting/queries/dashboard.query";
 import Link from "next/link";
 
 export default async function ReportsPage() {

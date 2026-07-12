@@ -1,10 +1,83 @@
 import Link from "next/link";
-import { getDepartmentDashboard } from "@/features/dashboard/queries";
-import { requireRole } from "@/lib/session";
+import { getEmployeeDashboard } from "@/modules/reporting/queries/employee-dashboard.query";
+import { getDepartmentDashboard } from "@/modules/reporting/queries/dashboard.query";
+import { assertRole, requireSessionUser } from "@/shared/auth/session";
 
 export default async function DashboardPage() {
-  const session = await requireRole("DEPARTMENT_HEAD", "ASSET_MANAGER", "ADMIN");
-  const user = session.user as { role?: string; departmentId?: string | null };
+  const user = await requireSessionUser();
+
+  if (user.role === "EMPLOYEE") {
+    const dashboard = await getEmployeeDashboard();
+
+    return (
+      <main className="app-shell">
+        <header className="page-header">
+          <div>
+            <p className="eyebrow">Employee workspace</p>
+            <h1 className="page-title">Welcome, {user.name}</h1>
+            <p className="page-subtitle">Your allocations, bookings, and requests.</p>
+          </div>
+          <nav className="nav-row">
+            <Link href="/allocation/my">My allocations</Link>
+            <Link href="/booking">Book resource</Link>
+            <Link href="/maintenance">Maintenance</Link>
+          </nav>
+        </header>
+
+        <section className="grid metrics" aria-label="Employee metrics">
+          <Metric label="Active allocations" value={dashboard.allocations.length} />
+          <Metric label="Upcoming bookings" value={dashboard.bookings.length} />
+          <Metric label="Maintenance requests" value={dashboard.maintenanceRequests.length} />
+          <Metric label="Transfer requests" value={dashboard.transferRequests.length} />
+        </section>
+
+        <section className="grid three" style={{ marginTop: 24 }}>
+          <Panel title="My Allocations">
+            {dashboard.allocations.map((allocation) => (
+              <ListItem
+                key={allocation.id}
+                title={`${allocation.asset.assetTag} - ${allocation.asset.name}`}
+                meta={allocation.asset.location ?? "No location"}
+              />
+            ))}
+            {dashboard.allocations.length === 0 && <Empty />}
+          </Panel>
+
+          <Panel title="Upcoming Bookings">
+            {dashboard.bookings.map((booking) => (
+              <ListItem
+                key={booking.id}
+                title={`${booking.asset.assetTag} - ${booking.asset.name}`}
+                meta={`${booking.startTime.toLocaleString()} - ${booking.endTime.toLocaleString()}`}
+              />
+            ))}
+            {dashboard.bookings.length === 0 && <Empty />}
+          </Panel>
+
+          <Panel title="Recent Requests">
+            {dashboard.maintenanceRequests.map((request) => (
+              <ListItem
+                key={request.id}
+                title={`Maintenance: ${request.asset.assetTag}`}
+                meta={`${request.status} - ${request.priority}`}
+              />
+            ))}
+            {dashboard.transferRequests.map((transfer) => (
+              <ListItem
+                key={transfer.id}
+                title={`Transfer: ${transfer.allocation.asset.assetTag}`}
+                meta={`${transfer.status} to ${transfer.toEmployee.name}`}
+              />
+            ))}
+            {dashboard.maintenanceRequests.length === 0 &&
+              dashboard.transferRequests.length === 0 && <Empty />}
+          </Panel>
+        </section>
+      </main>
+    );
+  }
+
+  assertRole(user, "DEPARTMENT_HEAD", "ASSET_MANAGER", "ADMIN");
 
   if (!user.departmentId && user.role === "DEPARTMENT_HEAD") {
     return (

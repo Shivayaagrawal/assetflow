@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getReportsOverview } from "@/features/dashboard/queries";
+import { getReportsOverview } from "@/modules/reporting/queries/dashboard.query";
 
 function csvCell(value: string | number | null | undefined) {
   const text = String(value ?? "");
