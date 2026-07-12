@@ -119,6 +119,14 @@ else
 fi
 
 section "Reports"
+REPORT_UNAUTH_HTTP=$(curl -sS -o /tmp/e2e-reports-unauth.json -w "%{http_code}" \
+  "$BASE_URL/reports/export")
+if [[ "$REPORT_UNAUTH_HTTP" == "401" || "$REPORT_UNAUTH_HTTP" == "307" ]]; then
+  pass "GET /reports/export without session blocked (HTTP $REPORT_UNAUTH_HTTP)"
+else
+  fail "GET /reports/export without session expected 401 or 307, got HTTP $REPORT_UNAUTH_HTTP"
+fi
+
 assert_http_ok "GET /reports/export returns CSV (authenticated)" \
   curl -sS -L -b "$COOKIE_JAR" -o /tmp/e2e-reports.csv -w "%{http_code}" \
     "$BASE_URL/reports/export"
@@ -126,6 +134,78 @@ if head -1 /tmp/e2e-reports.csv | grep -q "Section"; then
   pass "reports CSV has header row"
 else
   fail "reports CSV missing expected header"
+fi
+
+section "Notifications & Activity"
+assert_http_ok "GET /api/notifications (authenticated)" \
+  curl -sS -b "$COOKIE_JAR" -o /tmp/e2e-notifications.json -w "%{http_code}" \
+    "$BASE_URL/api/notifications"
+assert_json_field "/tmp/e2e-notifications.json" '.success' 'true'
+
+assert_http_fail "GET /api/notifications without session → 401" 401 \
+  curl -sS -o /tmp/e2e-notifications-unauth.json -w "%{http_code}" \
+    "$BASE_URL/api/notifications"
+
+assert_http_ok "GET /notifications page" \
+  curl -sS -L -b "$COOKIE_JAR" -o /tmp/e2e-notifications-page.html -w "%{http_code}" \
+    "$BASE_URL/notifications"
+if grep -q "Notifications" /tmp/e2e-notifications-page.html; then
+  pass "notifications page renders title"
+else
+  fail "notifications page missing title"
+fi
+
+assert_http_ok "GET /activity page" \
+  curl -sS -L -b "$COOKIE_JAR" -o /tmp/e2e-activity-page.html -w "%{http_code}" \
+    "$BASE_URL/activity"
+if grep -q "Activity Feed" /tmp/e2e-activity-page.html; then
+  pass "activity page renders title"
+else
+  fail "activity page missing title"
+fi
+
+section "Booking calendar"
+assert_http_ok "GET /booking page" \
+  curl -sS -L -b "$COOKIE_JAR" -o /tmp/e2e-booking-page.html -w "%{http_code}" \
+    "$BASE_URL/booking"
+if grep -q "Resource calendar" /tmp/e2e-booking-page.html; then
+  pass "booking page renders calendar"
+else
+  fail "booking page missing calendar"
+fi
+
+section "Asset upload"
+printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > /tmp/e2e-asset.png
+assert_http_ok "POST /api/uploads/asset-image (authenticated)" \
+  curl -sS -b "$COOKIE_JAR" -o /tmp/e2e-upload.json -w "%{http_code}" \
+    -X POST "$BASE_URL/api/uploads/asset-image" \
+    -F "file=@/tmp/e2e-asset.png;type=image/png"
+assert_json_field "/tmp/e2e-upload.json" '.success' 'true'
+UPLOAD_URL=$(jq -r '.data.url // empty' /tmp/e2e-upload.json)
+if [[ "$UPLOAD_URL" == /uploads/assets/* ]]; then
+  pass "upload returns local asset path"
+else
+  fail "upload path unexpected: $UPLOAD_URL"
+fi
+
+assert_http_fail "POST /api/uploads/asset-image without session → 401" 401 \
+  curl -sS -o /tmp/e2e-upload-unauth.json -w "%{http_code}" \
+    -X POST "$BASE_URL/api/uploads/asset-image" \
+    -F "file=@/tmp/e2e-asset.png;type=image/png"
+
+ASSET_ID=$(docker exec "${PG_CONTAINER:-assetflow-postgres-1}" psql -U assetflow -d assetflow -tAc \
+  'SELECT id FROM "Asset" LIMIT 1' 2>/dev/null | tr -d '[:space:]' || true)
+if [[ -n "$ASSET_ID" ]]; then
+  assert_http_ok "GET asset detail with QR + timeline" \
+    curl -sS -L -b "$COOKIE_JAR" -o /tmp/e2e-asset-detail.html -w "%{http_code}" \
+      "$BASE_URL/assets/$ASSET_ID"
+  if grep -q "Asset QR Code" /tmp/e2e-asset-detail.html && grep -q "Asset Timeline" /tmp/e2e-asset-detail.html; then
+    pass "asset detail shows QR and timeline sections"
+  else
+    fail "asset detail missing QR or timeline sections"
+  fi
+else
+  skip "no asset id for detail page check"
 fi
 
 section "PostgreSQL constraints (live DB)"
