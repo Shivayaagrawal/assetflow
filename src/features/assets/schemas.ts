@@ -1,4 +1,4 @@
-import { AssetCondition } from "@prisma/client";
+import { AssetCondition, AssetStatus } from "@prisma/client";
 import { z } from "zod";
 
 const trimmedRequired = (field: string) =>
@@ -44,3 +44,27 @@ export const registerAssetSchema = z.object({
 });
 
 export type RegisterAssetInput = z.infer<typeof registerAssetSchema>;
+
+const emptyToUndefined = (value: unknown) =>
+  typeof value === "string" && value.trim() === "" ? undefined : value;
+
+const optionalTrimmed = z.preprocess(
+  emptyToUndefined,
+  z.string().trim().max(120).optional()
+);
+
+export const assetDirectoryFilterSchema = z.object({
+  search: optionalTrimmed,
+  status: z.preprocess(
+    emptyToUndefined,
+    z.nativeEnum(AssetStatus).optional().catch(undefined)
+  ),
+  categoryId: optionalTrimmed,
+  location: optionalTrimmed,
+});
+
+export const assetDetailInputSchema = z.object({
+  assetId: trimmedRequired("Asset"),
+});
+
+export type AssetDirectoryFilters = z.infer<typeof assetDirectoryFilterSchema>;
