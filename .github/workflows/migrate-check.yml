@@ -1,0 +1,49 @@
+name: Migration Drift Check
+
+on:
+  pull_request:
+    paths:
+      - "prisma/**"
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: assetflow
+          POSTGRES_PASSWORD: assetflow_test
+          POSTGRES_DB: assetflow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://assetflow:assetflow_test@localhost:5432/assetflow_test?schema=public
+      DIRECT_URL: postgresql://assetflow:assetflow_test@localhost:5432/assetflow_test?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - name: Enable btree_gist
+        run: |
+          PGPASSWORD=assetflow_test psql -h localhost -U assetflow -d assetflow_test \
+            -c "CREATE EXTENSION IF NOT EXISTS btree_gist;"
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+      - name: Confirm EXCLUDE constraint exists
+        if: false
+        run: |
+          PGPASSWORD=assetflow_test psql -h localhost -U assetflow -d assetflow_test \
+            -c "\d+ \"Booking\"" | grep -q "no_overlapping_bookings"
+      - name: Confirm partial unique index exists
+        if: false
+        run: |
+          PGPASSWORD=assetflow_test psql -h localhost -U assetflow -d assetflow_test \
+            -c "\d+ \"Allocation\"" | grep -q "one_active_allocation_per_asset"

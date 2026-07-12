@@ -1,239 +1,154 @@
 # Backend & Infrastructure Architecture
 
-High-level design for AssetFlow's production backend.
+Infrastructure patterns for AssetFlow — Docker, CI, auth, and notification design.
+
+> System design: [hld.md](./hld.md) · Implementation detail: [lld.md](./lld.md)
 
 ---
 
 ## Stack
 
-- **PostgreSQL 15+** — primary data store with constraint-driven integrity
-- **Prisma** — type-safe ORM, used exclusively inside repositories
-- **Node.js + TypeScript** — application runtime
-- **Express** — HTTP layer with versioned routes at `/api/v1`
+| Layer | Choice |
+|-------|--------|
+| Framework | Next.js 15, App Router, TypeScript strict |
+| ORM | Prisma |
+| Database | PostgreSQL 16 in Docker |
+| Auth | Better Auth |
+| Validation | Zod (`lib/env.ts` + feature schemas) |
+| Containerization | Docker Compose multi-stage build |
+| CI | GitHub Actions + Postgres service container |
 
 ---
 
 ## Layered Architecture
 
 ```
-┌─────────────────────────────────────────┐
-│  Presentation  (routes, controllers)    │
-├─────────────────────────────────────────┤
-│  Application   (services, workflows)    │
-├─────────────────────────────────────────┤
-│  Domain        (policies, invariants)   │
-├─────────────────────────────────────────┤
-│  Repository    (Prisma queries)         │
-├─────────────────────────────────────────┤
-│  Database      (PostgreSQL)               │
-└─────────────────────────────────────────┘
+app/ (routing)  →  features/ (business logic)  →  lib/ (infrastructure)  →  prisma/
 ```
 
-### Layer Responsibilities
-
-| Layer | Owns | Must Not |
-|-------|------|----------|
-| Controllers | Request parsing, response mapping, HTTP codes | Business logic, Prisma calls |
-| Services | Workflows, transactions, business rules | Direct SQL, HTTP concerns |
-| Domain | Policies, invariant checks, pure functions | I/O |
-| Repositories | CRUD, queries, Prisma | Business rules, calling other repos |
-| Database | Constraints, indexes, views | Application logic |
+| Layer | Owns |
+|-------|------|
+| `app/` | Pages, layouts, route handlers — no business logic |
+| `features/*` | `actions.ts`, `queries.ts`, `schemas.ts` per domain |
+| `lib/` | Prisma singleton, auth, session helpers, env, logger |
+| PostgreSQL | Constraints, indexes, transactions |
 
 ---
 
-## Module Map
+## Database Constraints
 
-```
-Organization ──┐
-Auth ──────────┤
-Assets ────────┼──► Services ──► Repositories ──► PostgreSQL
-Allocations ───┤
-Bookings ──────┤
-Maintenance ───┤
-Audits ────────┘
-       │
-       └──► Notifications, ActivityLog, Reports
+### Booking Overlap (EXCLUDE)
+
+```sql
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+ALTER TABLE "Booking" ADD CONSTRAINT no_overlapping_bookings
+  EXCLUDE USING GIST (
+    "assetId" WITH =,
+    tstzrange("startTime", "endTime", '[)') WITH &&
+  ) WHERE (status IN ('UPCOMING', 'ONGOING'));
 ```
 
-Each module owns its domain through the full stack. Cross-module coordination happens in services, never in repositories.
+API catches `23P01` → `409 BOOKING_002`.
+
+### Active Allocation (Partial Unique Index)
+
+```sql
+CREATE UNIQUE INDEX one_active_allocation_per_asset
+  ON "Allocation" ("assetId") WHERE status = 'ACTIVE';
+```
+
+API catches `23505` → holder identity + transfer offer.
+
+### Auto-Install `btree_gist`
+
+`docker/init-extensions.sql` runs on first Postgres container start — no manual step required.
 
 ---
 
-## API Contract
+## Prisma Singleton
 
-### Versioning
+`src/lib/db.ts` — one `PrismaClient` instance, never duplicated.
 
-All endpoints are prefixed with `/api/v1`.
-
-### Response Envelope
-
-```json
-{
-  "success": true,
-  "data": {},
-  "error": null,
-  "meta": { "page": 1, "total": 42 }
-}
+```
+DATABASE_URL=...?connection_limit=10&pool_timeout=20
 ```
 
-### Pagination
-
-- Default page size: **20**
-- Maximum page size: **100**
-- Offset-based pagination with `page` and `limit` query params
-- Sorting via `sortBy` and `sortOrder` (explicit allow-list per endpoint)
-
-### HTTP Status Codes
-
-| Code | Usage |
-|------|-------|
-| 200 | Successful read / update |
-| 201 | Successful create |
-| 400 | Validation error |
-| 401 | Unauthenticated |
-| 403 | Forbidden (policy denied) |
-| 404 | Resource not found |
-| 409 | Conflict (constraint violation, duplicate) |
-| 500 | Unexpected server error |
+For the single-container Docker deployment: `connection_limit=10` (not serverless `connection_limit=1`).
 
 ---
 
-## Database Design
+## Notification Architecture
 
-### Constraint Strategy
+| Trigger type | Pattern |
+|--------------|---------|
+| Event (allocate, book, approve, close audit) | `createNotification(tx, ...)` inside same `$transaction` |
+| Time (overdue return) | `GET /api/cron/overdue-check` with `Bearer CRON_SECRET` |
 
-| Rule | Enforcement |
-|------|-------------|
-| Booking overlap | `EXCLUDE` on `(asset_id, tsrange)` |
-| One active allocation per asset | Partial unique index `WHERE status = 'ACTIVE'` |
-| End > Start (bookings) | `CHECK (end_at > start_at)` |
-| Return >= Allocation date | `CHECK (return_date >= allocation_date)` |
-| Cost >= 0 | `CHECK (cost >= 0)` |
-| Status / priority enums | `CHECK` or PostgreSQL enum type |
-| Serial number uniqueness | `UNIQUE` constraint |
-| Asset tag immutability | Application guard + no UPDATE on tag column |
-
-### Transaction Boundaries
-
-Multi-step operations commit atomically:
-
-**Allocate Asset**
-```
-BEGIN → Create Allocation → Update Asset Status → Activity Log → Notification → COMMIT
-```
-
-**Maintenance Approval**
-```
-BEGIN → Update Maintenance Status → Update Asset Status → Activity Log → Notification → COMMIT
-```
-
-**Audit Close**
-```
-BEGIN → Lock Cycle → Update Assets → Generate Report → Notification → COMMIT
-```
-
-### Soft Delete Policy
-
-| Entity | Strategy |
-|--------|----------|
-| Departments | Deactivate (`isActive = false`) |
-| Assets | Never delete — status transitions only |
-| Users / Employees | Inactive flag |
-| Categories | Deactivate |
-| Bookings, Maintenance, Audits | Never delete — status transitions only |
+Frontend: SWR polling against notification queries.
 
 ---
 
-## Authentication & Sessions
+## Auth — Defense in Depth
 
-```
-Request → Session Middleware → Permission Check → Policy Evaluation → Handler
-```
+| Layer | File | Role |
+|-------|------|------|
+| 1 | `middleware.ts` | Cookie-existence redirect (optimistic) |
+| 2 | `lib/session.ts` | `requireSession()`, `requireRole()`, `requireDepartmentAccess()` |
 
-- Identity derived from server-side session, never from request body
-- Department Head actions scoped to `session.departmentId`
-- Password reset: 15-minute token expiry, one-time use, hashed storage
-- Password reset invalidates existing sessions
-- Inactive employees cannot log in
+Every Server Action starts with Layer 2. Identity never comes from request body.
 
 ---
 
-## Concurrency & Idempotency
+## Docker
 
-| Operation | Protection |
-|-----------|------------|
-| Booking overlap | PostgreSQL `EXCLUDE` constraint |
-| Double-click allocate | Idempotency key + unique active allocation index |
-| Approve maintenance twice | Status check inside transaction |
-| Transfer approve twice | Idempotent state transition |
-| Audit close (two managers) | Row-level lock on audit cycle within transaction |
+```bash
+# Dev — Postgres only
+docker compose up -d postgres
+npm run dev
 
----
+# Full stack
+docker compose up --build
 
-## Performance Budget
-
-| Metric | Target |
-|--------|--------|
-| Response time | < 150 ms (p95) on standard endpoints |
-| Queries per request | < 3 |
-| Prisma | `select` only needed fields; no blind `include` |
-| Search | Indexed columns, case-insensitive partial match |
-
----
-
-## Infrastructure
-
-```
-┌──────────┐     ┌──────────┐     ┌────────────┐
-│ Frontend │────►│ API      │────►│ PostgreSQL │
-│ (React)  │     │ (Node)   │     │            │
-└──────────┘     └────┬─────┘     └────────────┘
-                      │
-                      ▼
-               ┌────────────┐
-               │ Cron Jobs  │  (audit reminders, digest)
-               └────────────┘
+# Dev hot-reload
+docker compose -f docker-compose.yml -f docker/docker-compose.override.yml up
 ```
 
-- Health endpoint: `GET /api/v1/health` (returns 503 when DB unreachable)
-- Migrations run on deploy via `prisma migrate deploy`
-- Environment config via `.env` (never committed)
+Health: `GET /api/health` returns 503 when DB is unreachable.
 
 ---
 
-## Repository Contracts
+## CI Pipeline
 
-Each repository exposes a typed interface. Services depend on interfaces, not implementations.
+`.github/workflows/ci.yml`:
 
-```typescript
-interface AssetRepository {
-  findById(id: string): Promise<Asset | null>;
-  findByTag(tag: string): Promise<Asset | null>;
-  create(data: CreateAssetInput): Promise<Asset>;
-  updateStatus(id: string, status: AssetStatus): Promise<Asset>;
-  search(params: AssetSearchParams): Promise<PaginatedResult<Asset>>;
-}
-
-interface BookingRepository { /* ... */ }
-interface AllocationRepository { /* ... */ }
-interface NotificationRepository { /* ... */ }
+```
+install → btree_gist → prisma generate → lint → typecheck → test → build
 ```
 
+`.github/workflows/migrate-check.yml` — validates constraint migrations on PRs touching `prisma/`.
+
 ---
 
-## Audit Trail
+## Transaction Boundaries
 
-Every state-changing action records:
+| Workflow | Atomic steps |
+|----------|-------------|
+| Allocate | Allocation → asset status → activity log → notification |
+| Approve maintenance | Request status → asset UNDER_MAINTENANCE → activity → notification |
+| Resolve maintenance | Request RESOLVED → asset AVAILABLE → activity → notification |
+| Close audit | Lock cycle → Missing → Lost → report → notifications |
 
-| Field | Description |
-|-------|-------------|
-| `actorId` | Who performed the action |
-| `action` | What happened (e.g. `asset.allocated`) |
-| `entityType` | Module entity (e.g. `Asset`) |
-| `entityId` | Target record ID |
-| `oldValue` | Previous state (JSON) |
-| `newValue` | New state (JSON) |
-| `reason` | Optional justification |
-| `createdAt` | Timestamp (UTC) |
+---
 
-Activity log entries are append-only and never modified.
+## Environment Variables
+
+Validated at boot via `src/lib/env.ts`. See `.env.example`.
+
+---
+
+## Related Documents
+
+- [hld.md](./hld.md) — high-level system design
+- [lld.md](./lld.md) — schema, sequences, API contracts
+- [execution-plan.md](./execution-plan.md) — build timeline

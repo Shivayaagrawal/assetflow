@@ -1,180 +1,138 @@
-# Execution Plan
+# AssetFlow — Odoo Hackathon 2026 Execution Plan
 
-Phased delivery plan for AssetFlow. Each phase produces a deployable, testable increment.
+**12 July 2026 · 9:00 AM – 5:00 PM IST · Team of 3**
 
----
-
-## Phase 1 — Foundation (Week 1)
-
-### Goals
-
-- Project scaffolding (TypeScript, ESLint, Prettier, Vitest)
-- PostgreSQL schema with core tables and constraints
-- Prisma setup with singleton client
-- Auth module (login, session, forgot password)
-- Organization module (departments, employees, roles)
-- API foundation (`/api/v1`, error envelope, health check)
-
-### Deliverables
-
-- [ ] `prisma/schema.prisma` with Organization, User, Employee, Department tables
-- [ ] Auth service with session management
-- [ ] Department CRUD with hierarchy validation (no cycles)
-- [ ] Employee CRUD with role assignment
-- [ ] Activity log table and repository
-- [ ] Seed data: Admin user, sample departments, sample employees
-- [ ] `GET /api/v1/health`
-
-### Exit Criteria
-
-Admin can log in, create departments and employees, and all migrations + seeds pass CI.
+Enterprise Asset & Resource Management System — personalized build plan aligned with the spec and mockup.
 
 ---
 
-## Phase 2 — Asset Core (Week 2)
+## Core Workflow (One Sentence)
 
-### Goals
-
-- Asset registration with auto-generated tags (`AF-000001`)
-- Category management
-- Status lifecycle enforcement
-- File attachments
-- Search with priority ranking
-
-### Deliverables
-
-- [ ] Asset CRUD with immutable tag and unique serial number
-- [ ] Category CRUD with soft-deactivate
-- [ ] Status transition service with lifecycle matrix
-- [ ] Sequence number generation with row locking
-- [ ] File upload (PNG/JPEG ≤ 5 MB, PDF ≤ 10 MB)
-- [ ] Asset search endpoint with ranked results
-
-### Exit Criteria
-
-Assets can be created, categorized, searched, and transitioned through valid statuses. DB rejects duplicate serials and invalid transitions.
+> An asset moves through a lifecycle; it can be allocated to one holder at a time or booked in non-overlapping time slots; maintenance and audits gate and update its status; every state change notifies the right people.
 
 ---
 
-## Phase 3 — Allocation & Booking (Week 3)
+## Tier 1 — Must Be 100% Real
 
-### Goals
+- **Auth**: Signup creates Employee only; roles promoted only via Admin Employee Directory; Better Auth sessions; forgot-password flow
+- **Organization Setup** (Screen 3): Departments, categories, employee directory with promote action
+- **Asset Registration** (Screen 4): Auto tag, 7-state lifecycle, server-enforced transitions, per-asset history
+- **Allocation & Transfer** (Screen 5): Partial unique index; conflict surfaces holder name + transfer offer
+- **Resource Booking** (Screen 6): EXCLUDE constraint on overlapping slots
+- **Maintenance** (Screen 7): Kanban board; asset status cascade on approve/resolve
+- **Asset Audit** (Screen 8): Full cycle workflow; close locks cycle; Missing → Lost
+- **Dashboard** (Screen 2): Real KPI queries; overdue returns highlighted
+- **Search/QR** (Screen 4): Postgres search; QR generate-and-display
+- **Notifications** (Screen 10): Real rows for all trigger events; SWR polling
+- **Activity log**: Append-only across all mutations
+- **Three role dashboards**: Employee, Department Head, Asset Manager (+ thin Admin org screen)
 
-- Full allocation workflow (allocate, return, transfer)
-- Booking with overlap protection
-- Department-scoped manager permissions
-- Notifications on state changes
+## Tier 2 — If Ahead at 1:30 PM or 3:30 PM Gate
 
-### Deliverables
+- Reports & Analytics (Screen 9) with named widgets
+- Shared `RecentActivityFeed` on Dashboard + Notifications
+- CSV export, category custom fields (JSON), calendar booking view, real file upload
 
-- [ ] Allocate / return / transfer services with transactions
-- [ ] Booking service with EXCLUDE constraint
-- [ ] Idempotent allocate and approve endpoints
-- [ ] Permission policies for Department Head scope
-- [ ] Notification service with deduplication key
-- [ ] Business-rule tests: overlap, conflict, permissions
+## Tier 3 — Explicit Cut
 
-### Exit Criteria
-
-Two simultaneous booking attempts result in one success and one 409. Allocation history is immutable. All four test dimensions pass (happy, failure, edge, auth).
-
----
-
-## Phase 4 — Maintenance & Audit (Week 4)
-
-### Goals
-
-- Maintenance request lifecycle
-- Audit cycle management
-- Reporting with pagination
-- Dashboard data endpoints
-
-### Deliverables
-
-- [ ] Maintenance: raise → approve → assign → resolve / reject
-- [ ] Audit: start cycle → verify assets → close (immutable)
-- [ ] Report endpoints with pagination (default 20, max 100)
-- [ ] Dashboard summary endpoint
-- [ ] Transactional audit close
-
-### Exit Criteria
-
-Closed audits are immutable. Maintenance lifecycle complete with authorization checks. Reports paginate correctly.
+Depreciation/accounting, QR camera scanning, PDF export, multi-company, ML recommendations, fourth Admin dashboard.
 
 ---
 
-## Phase 5 — Frontend (Week 5)
+## Team Split
 
-### Goals
+| Person | Tier 1 Ownership | Stretch |
+|--------|------------------|---------|
+| **P1** | Schema (locked after design), auth, org-setup, booking (EXCLUDE), employee vertical | Calendar view, custom fields |
+| **P2** | Department Head dashboard, dept-scoped approvals, booking reuse | Reports & Analytics |
+| **P3** | Assets, allocation (manager), maintenance Kanban, audit, notifications, search/QR | CSV export, file upload |
 
-- Role-based UI for all workflows
-- Reusable component library
-- Responsive, accessible design
-- Dashboard with live refresh
-
-### Deliverables
-
-- [ ] Auth pages (login, forgot password, reset)
-- [ ] Asset list, detail, create/edit forms
-- [ ] Allocation and booking interfaces
-- [ ] Maintenance and audit workflows
-- [ ] Admin panel (departments, employees, categories)
-- [ ] Dashboard with SWR / 30 s polling
-
-### Exit Criteria
-
-All primary workflows completable from UI. No hardcoded data. Shared form components across modules.
+**Schema lock:** Only P1 edits `prisma/schema.prisma` after the 10:50 AM push. Booking EXCLUDE migration SQL is P1-only permanently.
 
 ---
 
-## Phase 6 — Hardening & Deploy (Week 6)
+## Timeline
 
-### Goals
-
-- Full test coverage on business rules
-- CI/CD pipeline
-- Rate limiting and security hardening
-- Production deployment
-
-### Deliverables
-
-- [ ] Integration test suite
-- [ ] GitHub Actions: lint → typecheck → test → build
-- [ ] Rate limiting on auth endpoints (login 5/min, forgot-password 3/min)
-- [ ] Error catalogue implemented (`docs/errors.md`)
-- [ ] Production deploy (Railway / similar)
-- [ ] Seed data checklist verified (every lifecycle stage represented)
-
-### Exit Criteria
-
-CI green on every PR. Application deployed and accessible. All business invariants enforced at DB + service level.
+| Time | Milestone |
+|------|-----------|
+| **9:00–9:45** | Confirm workflow, roles, fill `CONVENTIONS.md`, repo ready |
+| **9:45–11:00** | Co-design schema (17–20 models), P1 pushes, all regenerate |
+| **11:00–12:00** | Seed data (mockup cast), first real commits, CI green |
+| **12:00–3:30** | Parallel vertical build (P1/P2/P3 branches) |
+| **~1:30** | Merge gate: EXCLUDE + allocation conflict E2E, notification handoff |
+| **~3:30** | Build complete: all Tier 1 verticals merged |
+| **3:30–4:30** | Business-rule tests per vertical |
+| **4:30–5:30** | Integration smoke (mockup scenarios), `docker compose up` clean clone |
+| **5:30–6:30** | Documentation matches reality |
+| **Last 30 min** | Ship with margin |
 
 ---
 
-## Daily Workflow
+## Git Workflow
 
-```
-1. Pick task from current phase
-2. Write / update business invariant if new rule introduced
-3. Implement: DB constraint → Prisma → Repository → Service → Controller
-4. Write business-rule tests (not CRUD tests)
-5. Self-review against .cursor/rules/review.mdc
-6. lint → typecheck → test → build
-7. Commit with conventional message
-8. Open PR
-```
+Branches: `p1/foundation-employee`, `p2/depthead`, `p3/assetmanager-audit`
+
+Merge every 45–60 minutes. Pull-resolve-push. Never force-push. Conventional commits.
 
 ---
 
-## Seed Data Checklist
+## Validation Gates
 
-Every seed run must include at least one record in each state:
+### 11:00 AM
+- `npx prisma validate` passes
+- Migration applies on fresh Postgres
+- `btree_gist` extension confirmed
+- 3-role gut-check passes
 
-- [ ] Asset: Available, Allocated, Under Maintenance, Booked, Lost, Retired, Disposed
-- [ ] Allocation: Active, Returned
-- [ ] Booking: Active, Cancelled, Completed
-- [ ] Maintenance: Pending, Approved, Assigned, Resolved, Rejected
-- [ ] Audit: In Progress, Closed
-- [ ] Notification: Unread, Read
-- [ ] Employee: Active, Inactive
-- [ ] Department: Active, Inactive
+### 1:30 PM
+- All branches merge and build
+- Booking overlap rejected via API (09:30 vs seeded 09:00)
+- Allocation conflict returns holder name
+- `createNotification()` coordinated across P1/P2/P3
+- No `new PrismaClient()` outside `lib/db.ts`
+
+### 3:30 PM
+- Each role's Tier 1 actions work end-to-end
+- Maintenance cascade verified
+- Audit close → Lost verified
+
+### 4:30 PM Integration Smoke
+- AF-0114 allocate to Priya → re-allocate blocked → transfer offered
+- Room B2: 09:30–10:30 rejected, 10:00–11:00 accepted
+- Department rename live-updates `DepartmentPicker`
+- Maintenance approve → asset Under Maintenance
+- Every notification type fired at least once
+- `docker compose up` from clean clone succeeds
+
+---
+
+## Seed Data (Mockup Cast)
+
+- **Departments:** Engineering (Aditi Rao), Field Ops East (Sana Iqbal, Inactive), Facilities (Rohan Mehta)
+- **Assets:** AF-0114 Dell Laptop → Priya Shah; AF-0062 Projector (mid-maintenance); Conference Room B2 (bookable)
+- **Booking:** Room B2 09:00–10:00 Procurement Team
+- **People:** Priya Shah, Arjun Nair (past return, condition: good)
+- **Audit:** Engineering cycle, auditors Aditi Rao + Sana Iqbal, mixed results
+- **15–20 assets** across all 7 lifecycle states
+
+---
+
+## Self-Audit Checklist
+
+- [ ] Booking EXCLUDE constraint live (`\d+ "Booking"` in psql)
+- [ ] Allocation partial unique index live (`\d+ "Allocation"`)
+- [ ] Signup cannot set role via request body
+- [ ] Department Head cannot access other department via forged ID
+- [ ] All 6+ notification types visible in Notification table
+- [ ] Maintenance cascade (approve → Under Maintenance, resolve → Available) verified twice
+- [ ] Audit close cascade (Missing → Lost) verified twice
+- [ ] `btree_gist` auto-installed via Docker init script
+
+---
+
+## Related Documents
+
+- [hld.md](./hld.md) — system architecture
+- [lld.md](./lld.md) — implementation contracts
+- [architecture.md](./architecture.md) — infrastructure (Docker, CI, auth)
+- [business-invariants.md](./business-invariants.md) — domain rules
