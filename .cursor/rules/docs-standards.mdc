@@ -1,0 +1,39 @@
+---
+description: Documentation standards — no emojis, use mermaid diagrams and tables
+globs: "**/*.md"
+alwaysApply: true
+---
+
+# Documentation Standards
+
+## No Emojis
+
+Do not use emojis in markdown files, commit messages, PR bodies, or Cursor rules.
+
+Use plain language status words: `Complete`, `Missing`, `Partial`, `Critical`, `Pending`, `Blocked`.
+
+## Diagrams Over Prose
+
+Use mermaid for architecture, flows, state machines, and sequences. Use tables for matrices.
+
+| Topic | Diagram type | Example file |
+|-------|--------------|--------------|
+| Layer dependencies | `flowchart TD` | `backend/architecture/01-hld.md` |
+| Request flow | `sequenceDiagram` | `backend/api/booking.md` |
+| Entity relationships | `erDiagram` | `backend/database/erd.md` |
+| Status lifecycle | `stateDiagram-v2` | `backend/engineering/state-transition-matrix.md` |
+| RBAC chain | `flowchart LR` | `backend/architecture/06-rbac-and-policies.md` |
+| CI pipeline | `flowchart LR` | `backend/deployment/ci.md` |
+
+## Mermaid Syntax
+
+- No spaces in node IDs: `AssetService` not `Asset Service`
+- Quote edge labels with special characters: `A -->|"409 conflict"| B`
+- No explicit colors or styling
+- Subgraph IDs use camelCase: `subgraph authFlow [Auth Flow]`
+
+## Tables vs Diagrams
+
+- **Tables** — permission matrices, validation matrices, error catalogues, edge-case inventories
+- **Diagrams** — workflows, concurrency protection, module dependencies
+- **Both** — complex features: diagram for flow, table for field-level detail

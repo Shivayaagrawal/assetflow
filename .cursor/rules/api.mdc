@@ -1,32 +1,28 @@
 ---
-description: REST conventions, consistent response envelope, correct HTTP status codes
-globs: "**/{routes,controllers,handlers,api}/**/*.{ts,js}"
+description: Reads via Route Handlers, mutations via Server Actions, uniform envelope
+globs: "**/app/api/**/*.{ts,js},**/actions/**/*.{ts,js},**/*.action.ts"
 alwaysApply: false
 ---
 
 # API Design
 
-## REST Only
+## Read vs Mutate
 
-Use standard HTTP verbs:
+| Operation | Entry point |
+|-----------|-------------|
+| Reads (GET, lists, health) | Route Handlers or Server Component queries |
+| Mutations (create, update, workflows) | Server Actions |
 
-```
-GET    — read
-POST   — create
-PATCH  — partial update
-DELETE — remove
-```
+Do not build REST CRUD endpoints per module. Only `auth`, `health`, and `cron` use Route Handlers for mutations.
 
-## Consistent Response Envelope
-
-Every response uses the same shape:
+## Response Envelope
 
 ```typescript
 {
   success: boolean;
   data?: T;
   error?: { code: string; message: string };
-  meta?: { page?: number; total?: number; [key: string]: unknown };
+  meta?: { page?: number; total?: number };
 }
 ```
 
@@ -42,17 +38,19 @@ Every response uses the same shape:
 | Conflict (constraint violation) | 409 |
 | Server error | 500 |
 
-**Never return 200 with an error.** If the operation failed, use the appropriate 4xx/5xx code.
+Never return 200 with an error. Map `AppError` subclasses to the correct status code.
 
-## Examples
+## Server Action Pattern
 
 ```typescript
-// ❌ BAD
-return res.status(200).json({ success: false, error: 'Not found' });
-
-// ✅ GOOD
-return res.status(404).json({
-  success: false,
-  error: { code: 'NOT_FOUND', message: 'Asset not found' },
-});
+export async function allocateAssetAction(input: unknown) {
+  const session = await requireSession();
+  const data = allocateAssetSchema.parse(input);
+  const user = toSessionUser(session);
+  await AllocationPolicy.assertCanAllocate(user, data.assetId);
+  const result = await allocateAssetService.execute(user, data);
+  return success(result);
+}
 ```
+
+No business logic in the action — validate, authorize, delegate, return envelope.

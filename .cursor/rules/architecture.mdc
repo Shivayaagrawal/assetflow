@@ -5,6 +5,29 @@ alwaysApply: true
 
 # Architecture
 
+## Rule #1 — Before Generating Any Code
+
+Ask in order:
+
+```
+1. Can I remove code?
+2. Can I reuse existing code?
+3. Can PostgreSQL solve this?
+4. Can Prisma solve this?
+5. Can an existing Application Service solve this?
+Only then → write new code.
+```
+
+## Architecture Lock (frozen)
+
+- Feature-first modules (`src/modules/` + `src/shared/`)
+- Workflow services (one operation per service)
+- Repository per module (all Prisma access)
+- Policies own authorization
+- PostgreSQL owns data integrity (constraints, transactions)
+- Server Actions and Route Handlers stay thin
+- No new infrastructure unless it solves a documented requirement
+
 ## Layered Architecture (Dependency Rule)
 
 Dependencies flow downward only. Upper layers may depend on lower layers; never the reverse.

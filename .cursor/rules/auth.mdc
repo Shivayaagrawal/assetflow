@@ -13,7 +13,7 @@ Never trust `userId`, `departmentId`, or `role` from request body, query params,
 Always derive identity and permissions server-side:
 
 ```
-Session → Permission → Policy
+Session → Policy → Application Service
 ```
 
 ## Rules

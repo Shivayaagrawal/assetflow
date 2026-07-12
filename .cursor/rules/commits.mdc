@@ -1,0 +1,52 @@
+---
+description: Pre-commit validation flow and commit message format (what, why, does)
+alwaysApply: true
+---
+
+# Commits
+
+## Pre-Commit Validation (mandatory order)
+
+```
+1. git status   — know what changed
+2. git diff     — read every line being committed
+3. npm run lint
+4. npm run typecheck
+5. npm run test
+6. npm run build (when applicable)
+7. Commit only if all pass — never use --no-verify
+```
+
+If a hook rejects the commit: fix the issue and create a **new** commit. Do not amend unless the user explicitly requests it.
+
+## Commit Message Format
+
+Every message answers **What**, **Why**, and **Does**:
+
+```
+<type>(<scope>): <short summary>
+
+Why: <business or engineering reason>
+Does: <concrete behavior change>
+```
+
+**Types:** `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `db`
+
+**Scopes:** `asset`, `booking`, `allocation`, `auth`, `maintenance`, `audit`, `org`, `shared`, `ci`, `docker`
+
+## Examples
+
+```
+db(booking): add EXCLUDE constraint for overlapping slots
+
+Why: Reviewers inspect migration.sql; documented rules must be enforced in PostgreSQL.
+Does: btree_gist extension + no_overlapping_bookings; concurrent overlaps return 409.
+```
+
+## Rules
+
+- One concern per commit when possible
+- Never commit `.env`, credentials, or secrets
+- Never commit unless the user explicitly asks
+- Body required for schema, business rules, or new modules
+- Reference wireframe screen or invariant when relevant

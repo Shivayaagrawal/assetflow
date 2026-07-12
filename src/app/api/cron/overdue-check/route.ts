@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runOverdueScan } from "@/features/notifications/overdue-scan";
+import { runOverdueScan } from "@/modules/notification/services/overdue-return-scan.service";
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");

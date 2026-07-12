@@ -1,0 +1,47 @@
+---
+description: Authorization policies — role and department scope, never inline role checks
+globs: "**/policies/**/*.{ts,js},**/*.policy.ts"
+alwaysApply: false
+---
+
+# Authorization Policies
+
+## Never Inline Role Checks
+
+```typescript
+// BAD
+if (user.role === "ADMIN") { /* allow */ }
+
+// GOOD
+if (!AssetPolicy.canAllocate(user, asset)) {
+  throw new AuthorizationError("AUTH_007");
+}
+```
+
+## Rules
+
+- One policy file per domain module: `AssetPolicy`, `BookingPolicy`, `AllocationPolicy`, `DepartmentPolicy`
+- Policies are pure functions or small classes with `canView`, `canCreate`, `canApprove`, etc.
+- Policies check role AND department scope where applicable
+- Called from Server Actions **before** Application Service — never inside repositories
+- Authorization does not belong in services or repositories
+
+## Evaluation Chain
+
+```
+Session → Policy → Application Service → Repository
+```
+
+Identity always comes from `requireSession()` — never from request body.
+
+## Department Head Scope
+
+```typescript
+// BAD — any department
+if (user.role === "DEPARTMENT_HEAD") return true;
+
+// GOOD — own department only
+if (user.role === "DEPARTMENT_HEAD" && resource.departmentId !== user.departmentId) {
+  throw new AuthorizationError("AUTH_007");
+}
+```

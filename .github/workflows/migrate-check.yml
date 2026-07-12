@@ -38,12 +38,10 @@ jobs:
       - name: Apply migrations
         run: npx prisma migrate deploy
       - name: Confirm EXCLUDE constraint exists
-        if: false
         run: |
           PGPASSWORD=assetflow_test psql -h localhost -U assetflow -d assetflow_test \
             -c "\d+ \"Booking\"" | grep -q "no_overlapping_bookings"
       - name: Confirm partial unique index exists
-        if: false
         run: |
           PGPASSWORD=assetflow_test psql -h localhost -U assetflow -d assetflow_test \
             -c "\d+ \"Allocation\"" | grep -q "one_active_allocation_per_asset"
