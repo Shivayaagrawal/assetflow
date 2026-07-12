@@ -41,6 +41,8 @@ export default async function RootLayout({
                 <Link href="/booking/department">Dept Booking</Link>
                 <Link href="/org-setup">Org Setup</Link>
                 <Link href="/reports">Reports</Link>
+                <Link href="/notifications">Notifications</Link>
+                <Link href="/activity">Activity</Link>
                 <Link href="/assets/new">Register Asset</Link>
               </nav>
               <LogoutButton />
