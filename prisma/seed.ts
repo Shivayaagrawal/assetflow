@@ -1,4 +1,5 @@
 import { prisma } from "../src/lib/db";
+
 const SEED_PASSWORD = process.env.SEED_PASSWORD ?? "Password123!";
 
 async function hashPassword(password: string): Promise<string> {
@@ -11,6 +12,7 @@ async function createAuthUser(input: {
   email: string;
   role: "EMPLOYEE" | "DEPARTMENT_HEAD" | "ASSET_MANAGER" | "ADMIN";
   departmentId?: string;
+  status?: "ACTIVE" | "INACTIVE";
 }) {
   const passwordHash = await hashPassword(SEED_PASSWORD);
   const user = await prisma.user.create({
@@ -19,7 +21,7 @@ async function createAuthUser(input: {
       email: input.email.toLowerCase(),
       emailVerified: true,
       role: input.role,
-      status: "ACTIVE",
+      status: input.status ?? "ACTIVE",
       departmentId: input.departmentId,
     },
   });
@@ -50,6 +52,7 @@ async function main() {
   await prisma.allocation.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.assetCategory.deleteMany();
+  await prisma.verification.deleteMany();
   await prisma.account.deleteMany();
   await prisma.session.deleteMany();
   await prisma.user.deleteMany();
@@ -58,18 +61,11 @@ async function main() {
   const engineering = await prisma.department.create({
     data: { name: "Engineering", status: "ACTIVE" },
   });
+  const fieldOpsEast = await prisma.department.create({
+    data: { name: "Field Ops East", status: "ACTIVE" },
+  });
   const facilities = await prisma.department.create({
     data: { name: "Facilities", status: "ACTIVE" },
-  });
-  const fieldOps = await prisma.department.create({
-    data: { name: "Field Ops", status: "ACTIVE" },
-  });
-  await prisma.department.create({
-    data: {
-      name: "Field Ops (East)",
-      status: "ACTIVE",
-      parentId: fieldOps.id,
-    },
   });
 
   const electronics = await prisma.assetCategory.create({
@@ -82,30 +78,60 @@ async function main() {
     data: { name: "Conference Rooms" },
   });
 
-  const admin = await createAuthUser({
+  await createAuthUser({
     name: "Admin User",
     email: "admin@assetflow.demo",
     role: "ADMIN",
   });
-  const assetManager = await createAuthUser({
-    name: "Arjun Nair",
-    email: "arjun@assetflow.demo",
-    role: "ASSET_MANAGER",
-    departmentId: engineering.id,
-  });
-  const deptHead = await createAuthUser({
+
+  const aditi = await createAuthUser({
     name: "Aditi Rao",
     email: "aditi@assetflow.demo",
     role: "DEPARTMENT_HEAD",
     departmentId: engineering.id,
   });
+  const sana = await createAuthUser({
+    name: "Sana Iqbal",
+    email: "sana@assetflow.demo",
+    role: "DEPARTMENT_HEAD",
+    departmentId: fieldOpsEast.id,
+    status: "INACTIVE",
+  });
+  const rohan = await createAuthUser({
+    name: "Rohan Mehta",
+    email: "rohan@assetflow.demo",
+    role: "DEPARTMENT_HEAD",
+    departmentId: facilities.id,
+  });
+
   await prisma.department.update({
     where: { id: engineering.id },
-    data: { headId: deptHead.id },
+    data: { headId: aditi.id },
+  });
+  await prisma.department.update({
+    where: { id: fieldOpsEast.id },
+    data: { headId: sana.id },
+  });
+  await prisma.department.update({
+    where: { id: facilities.id },
+    data: { headId: rohan.id },
+  });
+
+  const maya = await createAuthUser({
+    name: "Maya Patel",
+    email: "maya@assetflow.demo",
+    role: "ASSET_MANAGER",
+    departmentId: engineering.id,
   });
   const priya = await createAuthUser({
     name: "Priya Shah",
     email: "priya@assetflow.demo",
+    role: "EMPLOYEE",
+    departmentId: engineering.id,
+  });
+  const arjun = await createAuthUser({
+    name: "Arjun Nair",
+    email: "arjun@assetflow.demo",
     role: "EMPLOYEE",
     departmentId: engineering.id,
   });
@@ -125,7 +151,7 @@ async function main() {
       departmentId: engineering.id,
       acquisitionDate: new Date("2024-03-12"),
       acquisitionCost: 85000,
-      location: "bengaluru",
+      location: "Bengaluru",
       status: "ALLOCATED",
       isBookable: false,
     },
@@ -137,9 +163,10 @@ async function main() {
       assetTag: "AF-0062",
       serialNumber: "SN-0062",
       categoryId: electronics.id,
+      departmentId: engineering.id,
       acquisitionDate: new Date("2023-06-01"),
       acquisitionCost: 45000,
-      location: "Engineering",
+      location: "Engineering Lab",
       status: "UNDER_MAINTENANCE",
       isBookable: false,
     },
@@ -151,12 +178,186 @@ async function main() {
       assetTag: "AF-ROOM-B2",
       serialNumber: "SN-ROOM-B2",
       categoryId: rooms.id,
+      departmentId: facilities.id,
       acquisitionDate: new Date("2022-01-01"),
       acquisitionCost: 0,
       location: "Floor B",
       status: "AVAILABLE",
       isBookable: true,
     },
+  });
+
+  const extraAssets = await prisma.asset.createMany({
+    data: [
+      {
+        name: "Standing Desk",
+        assetTag: "AF-0020",
+        serialNumber: "SN-0020",
+        categoryId: furniture.id,
+        departmentId: engineering.id,
+        acquisitionDate: new Date("2023-01-15"),
+        acquisitionCost: 22000,
+        location: "Engineering",
+        status: "AVAILABLE",
+        isBookable: false,
+      },
+      {
+        name: "MacBook Pro",
+        assetTag: "AF-0031",
+        serialNumber: "SN-0031",
+        categoryId: electronics.id,
+        departmentId: engineering.id,
+        acquisitionDate: new Date("2024-06-01"),
+        acquisitionCost: 120000,
+        location: "Engineering",
+        status: "RESERVED",
+        isBookable: false,
+      },
+      {
+        name: "Office Chair",
+        assetTag: "AF-0045",
+        serialNumber: "SN-0045",
+        categoryId: furniture.id,
+        departmentId: facilities.id,
+        acquisitionDate: new Date("2022-08-10"),
+        acquisitionCost: 8000,
+        location: "Facilities Store",
+        status: "AVAILABLE",
+        isBookable: false,
+      },
+      {
+        name: "Field Tablet",
+        assetTag: "AF-0051",
+        serialNumber: "SN-0051",
+        categoryId: electronics.id,
+        departmentId: fieldOpsEast.id,
+        acquisitionDate: new Date("2023-11-20"),
+        acquisitionCost: 35000,
+        location: "Field Ops East",
+        status: "LOST",
+        isBookable: false,
+      },
+      {
+        name: "Legacy Printer",
+        assetTag: "AF-0078",
+        serialNumber: "SN-0078",
+        categoryId: electronics.id,
+        departmentId: facilities.id,
+        acquisitionDate: new Date("2018-04-01"),
+        acquisitionCost: 15000,
+        location: "Facilities",
+        status: "RETIRED",
+        isBookable: false,
+      },
+      {
+        name: "Old Server Rack",
+        assetTag: "AF-0089",
+        serialNumber: "SN-0089",
+        categoryId: electronics.id,
+        departmentId: engineering.id,
+        acquisitionDate: new Date("2016-02-14"),
+        acquisitionCost: 95000,
+        location: "Server Room",
+        status: "DISPOSED",
+        isBookable: false,
+      },
+      {
+        name: "Wireless Mouse",
+        assetTag: "AF-0093",
+        serialNumber: "SN-0093",
+        categoryId: electronics.id,
+        departmentId: engineering.id,
+        acquisitionDate: new Date("2025-01-10"),
+        acquisitionCost: 2500,
+        location: "Engineering",
+        status: "AVAILABLE",
+        isBookable: false,
+      },
+      {
+        name: "4K Monitor",
+        assetTag: "AF-0101",
+        serialNumber: "SN-0101",
+        categoryId: electronics.id,
+        departmentId: engineering.id,
+        acquisitionDate: new Date("2024-09-01"),
+        acquisitionCost: 28000,
+        location: "Engineering",
+        status: "RESERVED",
+        isBookable: false,
+      },
+      {
+        name: "Whiteboard",
+        assetTag: "AF-0120",
+        serialNumber: "SN-0120",
+        categoryId: furniture.id,
+        departmentId: facilities.id,
+        acquisitionDate: new Date("2021-05-20"),
+        acquisitionCost: 12000,
+        location: "Floor B",
+        status: "AVAILABLE",
+        isBookable: false,
+      },
+      {
+        name: "Handheld Scanner",
+        assetTag: "AF-0133",
+        serialNumber: "SN-0133",
+        categoryId: electronics.id,
+        departmentId: fieldOpsEast.id,
+        acquisitionDate: new Date("2024-02-28"),
+        acquisitionCost: 18000,
+        location: "Field Ops East",
+        status: "AVAILABLE",
+        isBookable: false,
+      },
+      {
+        name: "Conference Phone",
+        assetTag: "AF-0144",
+        serialNumber: "SN-0144",
+        categoryId: electronics.id,
+        departmentId: facilities.id,
+        acquisitionDate: new Date("2023-03-15"),
+        acquisitionCost: 22000,
+        location: "Floor B",
+        status: "AVAILABLE",
+        isBookable: false,
+      },
+      {
+        name: "Docking Station",
+        assetTag: "AF-0155",
+        serialNumber: "SN-0155",
+        categoryId: electronics.id,
+        departmentId: engineering.id,
+        acquisitionDate: new Date("2024-11-01"),
+        acquisitionCost: 9000,
+        location: "Engineering",
+        status: "AVAILABLE",
+        isBookable: false,
+      },
+      {
+        name: "Filing Cabinet",
+        assetTag: "AF-0166",
+        serialNumber: "SN-0166",
+        categoryId: furniture.id,
+        departmentId: facilities.id,
+        acquisitionDate: new Date("2020-07-07"),
+        acquisitionCost: 6000,
+        location: "Facilities Store",
+        status: "RETIRED",
+        isBookable: false,
+      },
+      {
+        name: "GPS Unit",
+        assetTag: "AF-0177",
+        serialNumber: "SN-0177",
+        categoryId: electronics.id,
+        departmentId: fieldOpsEast.id,
+        acquisitionDate: new Date("2022-12-01"),
+        acquisitionCost: 14000,
+        location: "Field Ops East",
+        status: "LOST",
+        isBookable: false,
+      },
+    ],
   });
 
   const allocation = await prisma.allocation.create({
@@ -166,6 +367,33 @@ async function main() {
       holderEmployeeId: priya.id,
       allocatedAt: new Date("2026-03-12"),
       status: "ACTIVE",
+    },
+  });
+
+  const returnedTablet = await prisma.asset.create({
+    data: {
+      name: "Returned Tablet",
+      assetTag: "AF-0188",
+      serialNumber: "SN-0188",
+      categoryId: electronics.id,
+      departmentId: engineering.id,
+      acquisitionDate: new Date("2023-05-01"),
+      acquisitionCost: 32000,
+      location: "Engineering",
+      status: "AVAILABLE",
+      isBookable: false,
+    },
+  });
+
+  await prisma.allocation.create({
+    data: {
+      assetId: returnedTablet.id,
+      holderType: "EMPLOYEE",
+      holderEmployeeId: arjun.id,
+      allocatedAt: new Date("2025-06-01"),
+      actualReturnDate: new Date("2026-01-15"),
+      conditionNotes: "good",
+      status: "RETURNED",
     },
   });
 
@@ -200,32 +428,39 @@ async function main() {
       scopeDepartmentId: engineering.id,
       startDate: new Date("2026-07-01"),
       endDate: new Date("2026-07-31"),
-      createdById: assetManager.id,
+      createdById: maya.id,
       auditors: {
-        create: [{ auditorId: deptHead.id }, { auditorId: assetManager.id }],
+        create: [{ auditorId: aditi.id }, { auditorId: sana.id }],
       },
     },
   });
 
   const engineeringAssets = await prisma.asset.findMany({
     where: { departmentId: engineering.id },
-    select: { id: true, location: true },
+    select: { id: true, location: true, assetTag: true },
   });
 
+  const verificationByTag: Record<string, "VERIFIED" | "PENDING" | "MISSING" | "DAMAGED"> = {
+    "AF-0114": "VERIFIED",
+    "AF-0062": "PENDING",
+    "AF-0031": "MISSING",
+    "AF-0101": "DAMAGED",
+  };
+
   for (const asset of engineeringAssets) {
+    const verificationStatus = verificationByTag[asset.assetTag] ?? "PENDING";
     await prisma.auditItem.create({
       data: {
         auditCycleId: auditCycle.id,
         assetId: asset.id,
         expectedLocation: asset.location,
-        verificationStatus: asset.id === laptop.id ? "VERIFIED" : "PENDING",
-        verifiedById: asset.id === laptop.id ? deptHead.id : undefined,
-        verifiedAt: asset.id === laptop.id ? new Date() : undefined,
+        verificationStatus,
+        verifiedById: verificationStatus === "VERIFIED" ? aditi.id : undefined,
+        verifiedAt: verificationStatus === "VERIFIED" ? new Date() : undefined,
       },
     });
   }
 
-  // Align sequence above seeded numeric tags so nextval() cannot collide
   await prisma.$executeRaw`
     SELECT setval('asset_tag_seq', GREATEST(
       COALESCE((
@@ -237,12 +472,18 @@ async function main() {
     ))
   `;
 
+  const assetCount = 3 + extraAssets.count + 1;
   console.log("Seed complete.");
+  console.log(`  ${assetCount} assets across all 7 lifecycle states`);
   console.log("Demo logins (password: " + SEED_PASSWORD + "):");
   console.log("  admin@assetflow.demo — ADMIN");
-  console.log("  arjun@assetflow.demo — ASSET_MANAGER");
-  console.log("  aditi@assetflow.demo — DEPARTMENT_HEAD");
+  console.log("  maya@assetflow.demo — ASSET_MANAGER");
+  console.log("  aditi@assetflow.demo — DEPARTMENT_HEAD (Engineering)");
+  console.log("  sana@assetflow.demo — DEPARTMENT_HEAD (Field Ops East, INACTIVE)");
+  console.log("  rohan@assetflow.demo — DEPARTMENT_HEAD (Facilities)");
   console.log("  priya@assetflow.demo — EMPLOYEE (AF-0114 allocated)");
+  console.log("  arjun@assetflow.demo — EMPLOYEE (past return, condition: good)");
+  console.log("  procurement@assetflow.demo — EMPLOYEE (Room B2 booking)");
   console.log("  Room B2 booked 09:00-10:00 for overlap tests");
   console.log(`  Active allocation id: ${allocation.id}`);
   console.log(`  Open audit cycle: ${auditCycle.name} (${auditCycle.id})`);

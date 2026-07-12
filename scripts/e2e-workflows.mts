@@ -76,7 +76,7 @@ async function main() {
   console.log(`  Workflow run id: ${runId}`);
 
   const admin = await sessionFor("admin@assetflow.demo");
-  const assetManager = await sessionFor("arjun@assetflow.demo");
+  const assetManager = await sessionFor("maya@assetflow.demo");
   const deptHead = await sessionFor("aditi@assetflow.demo");
   const employee = await sessionFor("priya@assetflow.demo");
 
