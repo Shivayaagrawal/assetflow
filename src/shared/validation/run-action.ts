@@ -4,6 +4,7 @@ import {
   success,
   type ActionResponse,
 } from "@/shared/types/action-result";
+import { AllocationConflictError } from "@/shared/errors/allocation-conflict.error";
 import { toActionError, ValidationError } from "@/shared/errors/app-error";
 
 export async function runAction<T>(
@@ -18,6 +19,13 @@ export async function runAction<T>(
     }
     if (error instanceof ValidationError) {
       return failure(error.code, error.message);
+    }
+    if (error instanceof AllocationConflictError) {
+      return failure(error.code, error.message, {
+        allocationId: error.allocationId,
+        holderName: error.holderName,
+        assetId: error.assetId,
+      });
     }
     const mapped = toActionError(error);
     return failure(mapped.code, mapped.message);

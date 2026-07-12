@@ -29,6 +29,10 @@ export function success<T>(data: T, meta?: Record<string, unknown>): ActionResul
   return { success: true, data, meta };
 }
 
-export function failure(code: string, message: string): ActionFailure {
-  return { success: false, error: { code, message } };
+export function failure(
+  code: string,
+  message: string,
+  meta?: Record<string, unknown>
+): ActionFailure {
+  return { success: false, error: { code, message }, meta };
 }
