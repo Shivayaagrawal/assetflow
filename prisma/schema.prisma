@@ -1,3 +1,23 @@
+// ============================================================================
+// AssetFlow — Prisma Schema
+// Generated to match: hld.md, lld.md, architecture.md, business-invariants.md
+//
+// 16 core models + Better Auth support tables (Session, Account, Verification)
+//   Identity:      User, Session, Account, Verification
+//   Organization:  Department, AssetCategory
+//   Asset core:    Asset
+//   Allocation:    Allocation, TransferRequest
+//   Booking:       Booking
+//   Maintenance:   MaintenanceRequest
+//   Audit:         AuditCycle, AuditCycleAuditor, AuditItem
+//   Notification:  Notification
+//   Activity:      ActivityLog
+//
+// IMPORTANT — constraints Prisma cannot express natively must be added via
+// hand-written SQL migrations AFTER `prisma migrate dev`. Search this file
+// for "RAW MIGRATION REQUIRED" comments. See lld.md §2.3 for exact SQL.
+// ============================================================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,7 +28,9 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ─── Auth (Better Auth) ───────────────────────────────────────────────────
+// ----------------------------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------------------------
 
 enum UserRole {
   EMPLOYEE
@@ -23,119 +45,10 @@ enum UserStatus {
   SUSPENDED
 }
 
-model User {
-  id           String     @id @default(cuid())
-  name         String
-  email        String     @unique
-  emailVerified Boolean   @default(false)
-  image        String?
-  role         UserRole   @default(EMPLOYEE)
-  status       UserStatus @default(ACTIVE)
-  departmentId String?
-  department   Department? @relation("DepartmentMembers", fields: [departmentId], references: [id])
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  sessions            Session[]
-  accounts            Account[]
-  headedDepartment    Department?         @relation("DepartmentHead")
-  allocations         Allocation[]        @relation("AllocationEmployee")
-  bookings            Booking[]
-  maintenanceRaised   MaintenanceRequest[] @relation("MaintenanceRaisedBy")
-  maintenanceApproved MaintenanceRequest[] @relation("MaintenanceApprovedBy")
-  transferRequests    TransferRequest[]   @relation("TransferRequestedBy")
-  transferApprovals   TransferRequest[]   @relation("TransferApprovedBy")
-  auditCyclesCreated  AuditCycle[]
-  auditAssignments    AuditCycleAuditor[]
-  auditVerifications  AuditItem[]
-  notifications       Notification[]
-  activityLogs        ActivityLog[]
-
-  @@index([departmentId])
-  @@index([role])
-  @@index([status])
-}
-
-model Session {
-  id        String   @id @default(cuid())
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model Account {
-  id                    String    @id @default(cuid())
-  accountId             String
-  providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  @@index([userId])
-}
-
-model Verification {
-  id         String   @id @default(cuid())
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
-
-// ─── Organization ───────────────────────────────────────────────────────────
-
 enum DepartmentStatus {
   ACTIVE
   INACTIVE
 }
-
-model Department {
-  id                 String           @id @default(cuid())
-  name               String
-  status             DepartmentStatus @default(ACTIVE)
-  parentDepartmentId String?
-  parentDepartment   Department?      @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id])
-  childDepartments   Department[]     @relation("DepartmentHierarchy")
-  headId             String?          @unique
-  head               User?            @relation("DepartmentHead", fields: [headId], references: [id])
-  members            User[]           @relation("DepartmentMembers")
-  allocations        Allocation[]
-  auditCycles        AuditCycle[]
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-
-  @@index([parentDepartmentId])
-  @@index([status])
-}
-
-model AssetCategory {
-  id          String   @id @default(cuid())
-  name        String
-  type        String?
-  customFields Json?
-  isActive    Boolean  @default(true)
-  assets      Asset[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-// ─── Assets ─────────────────────────────────────────────────────────────────
 
 enum AssetStatus {
   AVAILABLE
@@ -147,44 +60,6 @@ enum AssetStatus {
   DISPOSED
 }
 
-enum AssetCondition {
-  NEW
-  GOOD
-  FAIR
-  POOR
-}
-
-model Asset {
-  id              String         @id @default(cuid())
-  name            String
-  assetTag        String         @unique
-  serialNumber    String         @unique
-  categoryId      String
-  category        AssetCategory  @relation(fields: [categoryId], references: [id])
-  acquisitionDate DateTime
-  acquisitionCost Decimal        @db.Decimal(12, 2)
-  condition       AssetCondition @default(GOOD)
-  location        String
-  photoUrl        String?
-  isBookable      Boolean        @default(false)
-  status          AssetStatus    @default(AVAILABLE)
-  allocations     Allocation[]
-  bookings        Booking[]
-  maintenance     MaintenanceRequest[]
-  auditItems      AuditItem[]
-  transferRequests TransferRequest[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-
-  @@index([categoryId])
-  @@index([status])
-  @@index([location])
-  @@index([assetTag])
-  @@index([serialNumber])
-}
-
-// ─── Allocation & Transfer ──────────────────────────────────────────────────
-
 enum AllocationStatus {
   ACTIVE
   RETURNED
@@ -195,96 +70,11 @@ enum HolderType {
   DEPARTMENT
 }
 
-model Allocation {
-  id                   String           @id @default(cuid())
-  assetId              String
-  asset                Asset            @relation(fields: [assetId], references: [id])
-  holderType           HolderType
-  employeeId           String?
-  employee             User?            @relation("AllocationEmployee", fields: [employeeId], references: [id])
-  departmentId         String?
-  department           Department?      @relation(fields: [departmentId], references: [id])
-  allocatedAt          DateTime         @default(now())
-  expectedReturnDate   DateTime?
-  actualReturnDate     DateTime?
-  conditionCheckinNotes String?
-  status               AllocationStatus @default(ACTIVE)
-  transferRequests     TransferRequest[]
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
-
-  @@index([assetId])
-  @@index([employeeId])
-  @@index([departmentId])
-  @@index([status])
-  // Partial unique index added via raw migration:
-  // CREATE UNIQUE INDEX one_active_allocation_per_asset ON "Allocation" ("assetId") WHERE status = 'ACTIVE';
-}
-
-enum TransferStatus {
-  REQUESTED
-  APPROVED
-  REJECTED
-  COMPLETED
-}
-
-model TransferRequest {
-  id               String         @id @default(cuid())
-  assetId          String
-  asset            Asset          @relation(fields: [assetId], references: [id])
-  fromAllocationId String
-  fromAllocation   Allocation     @relation(fields: [fromAllocationId], references: [id])
-  toEmployeeId     String?
-  toDepartmentId   String?
-  requestedById    String
-  requestedBy      User           @relation("TransferRequestedBy", fields: [requestedById], references: [id])
-  approvedById     String?
-  approvedBy       User?          @relation("TransferApprovedBy", fields: [approvedById], references: [id])
-  status           TransferStatus @default(REQUESTED)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-
-  @@index([assetId])
-  @@index([fromAllocationId])
-  @@index([requestedById])
-  @@index([status])
-}
-
-// ─── Booking ────────────────────────────────────────────────────────────────
-
 enum BookingStatus {
   UPCOMING
   ONGOING
   COMPLETED
   CANCELLED
-}
-
-model Booking {
-  id         String        @id @default(cuid())
-  assetId    String
-  asset      Asset         @relation(fields: [assetId], references: [id])
-  bookedById String
-  bookedBy   User          @relation(fields: [bookedById], references: [id])
-  startTime  DateTime      @db.Timestamptz
-  endTime    DateTime      @db.Timestamptz
-  status     BookingStatus @default(UPCOMING)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-
-  @@index([assetId])
-  @@index([bookedById])
-  @@index([status])
-  @@index([startTime, endTime])
-  // EXCLUDE constraint added via raw migration — see docs/lld.md
-}
-
-// ─── Maintenance ──────────────────────────────────────────────────────────
-
-enum MaintenancePriority {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
 }
 
 enum MaintenanceStatus {
@@ -296,30 +86,12 @@ enum MaintenanceStatus {
   RESOLVED
 }
 
-model MaintenanceRequest {
-  id               String              @id @default(cuid())
-  assetId          String
-  asset            Asset               @relation(fields: [assetId], references: [id])
-  raisedById       String
-  raisedBy         User                @relation("MaintenanceRaisedBy", fields: [raisedById], references: [id])
-  issueDescription String
-  priority         MaintenancePriority @default(MEDIUM)
-  photoUrl         String?
-  status           MaintenanceStatus   @default(PENDING)
-  approvedById     String?
-  approvedBy       User?               @relation("MaintenanceApprovedBy", fields: [approvedById], references: [id])
-  technicianName   String?
-  approvedAt       DateTime?
-  resolvedAt       DateTime?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-
-  @@index([assetId])
-  @@index([raisedById])
-  @@index([status])
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
 }
-
-// ─── Audit ────────────────────────────────────────────────────────────────
 
 enum AuditCycleStatus {
   OPEN
@@ -333,58 +105,12 @@ enum VerificationStatus {
   DAMAGED
 }
 
-model AuditCycle {
-  id                 String           @id @default(cuid())
-  scopeDepartmentId  String?
-  scopeDepartment    Department?      @relation(fields: [scopeDepartmentId], references: [id])
-  scopeLocation      String?
-  dateRangeStart     DateTime
-  dateRangeEnd       DateTime
-  status             AuditCycleStatus @default(OPEN)
-  createdById        String
-  createdBy          User             @relation(fields: [createdById], references: [id])
-  closedAt           DateTime?
-  auditors           AuditCycleAuditor[]
-  items              AuditItem[]
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-
-  @@index([scopeDepartmentId])
-  @@index([status])
+enum TransferStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  COMPLETED
 }
-
-model AuditCycleAuditor {
-  id           String     @id @default(cuid())
-  auditCycleId String
-  auditCycle   AuditCycle @relation(fields: [auditCycleId], references: [id], onDelete: Cascade)
-  auditorId    String
-  auditor      User       @relation(fields: [auditorId], references: [id])
-  createdAt    DateTime   @default(now())
-
-  @@unique([auditCycleId, auditorId])
-  @@index([auditorId])
-}
-
-model AuditItem {
-  id                 String             @id @default(cuid())
-  auditCycleId       String
-  auditCycle         AuditCycle         @relation(fields: [auditCycleId], references: [id], onDelete: Cascade)
-  assetId            String
-  asset              Asset              @relation(fields: [assetId], references: [id])
-  verificationStatus VerificationStatus @default(PENDING)
-  notes              String?
-  verifiedById       String?
-  verifiedBy         User?              @relation(fields: [verifiedById], references: [id])
-  verifiedAt         DateTime?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-
-  @@unique([auditCycleId, assetId])
-  @@index([assetId])
-  @@index([verificationStatus])
-}
-
-// ─── Cross-cutting ────────────────────────────────────────────────────────
 
 enum NotificationType {
   ASSET_ASSIGNED
@@ -398,34 +124,403 @@ enum NotificationType {
   AUDIT_DISCREPANCY_FLAGGED
 }
 
+// ----------------------------------------------------------------------------
+// IDENTITY — Better Auth + business fields
+// ----------------------------------------------------------------------------
+
+model User {
+  id            String     @id @default(cuid())
+  name          String
+  email         String     @unique
+  emailVerified Boolean    @default(false)
+  image         String?
+  role          UserRole   @default(EMPLOYEE)
+  status        UserStatus @default(ACTIVE)
+
+  departmentId String?
+  department   Department? @relation("DepartmentMembers", fields: [departmentId], references: [id])
+
+  headedDepartment Department? @relation("DepartmentHead")
+
+  sessions Session[]
+  accounts Account[]
+
+  allocationsHeld             Allocation[]         @relation("AllocationHolder")
+  bookingsCreated             Booking[]
+  maintenanceRequestsRaised   MaintenanceRequest[] @relation("MaintenanceRaisedBy")
+  maintenanceRequestsApproved MaintenanceRequest[] @relation("MaintenanceApprovedBy")
+  transfersRequestedFrom        TransferRequest[]    @relation("TransferFromEmployee")
+  transfersRequestedTo        TransferRequest[]    @relation("TransferToEmployee")
+  transfersApproved           TransferRequest[]    @relation("TransferApprovedBy")
+  auditCyclesCreated          AuditCycle[]         @relation("AuditCreatedBy")
+  auditCycleAssignments       AuditCycleAuditor[]
+  auditItemsVerified          AuditItem[]          @relation("AuditVerifiedBy")
+  notifications               Notification[]
+  activityLogs                ActivityLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([departmentId])
+  @@index([role])
+  @@index([status])
+}
+
+// Better Auth standard tables — do not add business logic here.
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+// Backs both email verification and forgot-password (15-min, one-time, hashed).
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([identifier])
+}
+
+// ----------------------------------------------------------------------------
+// ORGANIZATION
+// ----------------------------------------------------------------------------
+
+model Department {
+  id     String           @id @default(cuid())
+  name   String           @unique
+  status DepartmentStatus @default(ACTIVE)
+
+  parentId String?
+  parent   Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children Department[] @relation("DepartmentHierarchy")
+
+  headId String? @unique
+  head   User?   @relation("DepartmentHead", fields: [headId], references: [id])
+
+  members     User[]       @relation("DepartmentMembers")
+  assets      Asset[]
+  allocations Allocation[] @relation("AllocationDepartmentHolder")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([parentId])
+}
+
+model AssetCategory {
+  id           String  @id @default(cuid())
+  name         String  @unique
+  customFields Json?
+  assets       Asset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ----------------------------------------------------------------------------
+// ASSET CORE
+// ----------------------------------------------------------------------------
+
+model Asset {
+  id              String      @id @default(cuid())
+  assetTag        String      @unique // format AF-000001, from asset_tag_seq — immutable
+  serialNumber    String      @unique
+  name            String
+  status          AssetStatus @default(AVAILABLE)
+  isBookable      Boolean     @default(false)
+  location        String?
+  acquisitionCost Decimal     @default(0) @db.Decimal(12, 2)
+  acquisitionDate DateTime?
+  imageUrl        String?
+
+  categoryId String
+  category   AssetCategory @relation(fields: [categoryId], references: [id])
+
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  allocations         Allocation[]
+  bookings            Booking[]
+  maintenanceRequests MaintenanceRequest[]
+  auditItems          AuditItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // RAW MIGRATION REQUIRED: cost_non_negative CHECK ("acquisitionCost" >= 0)
+  @@index([assetTag])
+  @@index([serialNumber])
+  @@index([status])
+  @@index([categoryId])
+  @@index([departmentId])
+  @@index([location])
+  @@index([name])
+}
+
+// ----------------------------------------------------------------------------
+// ALLOCATION & TRANSFER
+// ----------------------------------------------------------------------------
+
+model Allocation {
+  id     String           @id @default(cuid())
+  status AllocationStatus @default(ACTIVE)
+
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id])
+
+  holderType         HolderType
+  holderEmployeeId   String?
+  holderEmployee     User?       @relation("AllocationHolder", fields: [holderEmployeeId], references: [id])
+  holderDepartmentId String?
+  holderDepartment   Department? @relation("AllocationDepartmentHolder", fields: [holderDepartmentId], references: [id])
+
+  allocatedAt        DateTime  @default(now())
+  expectedReturnDate DateTime?
+  actualReturnDate   DateTime?
+  conditionNotes     String?
+
+  transferRequests TransferRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // RAW MIGRATION REQUIRED (partial unique index):
+  //   CREATE UNIQUE INDEX one_active_allocation_per_asset
+  //     ON "Allocation" ("assetId") WHERE status = 'ACTIVE';
+  // RAW MIGRATION REQUIRED (check):
+  //   ALTER TABLE "Allocation" ADD CONSTRAINT return_after_allocate
+  //     CHECK ("actualReturnDate" IS NULL OR "actualReturnDate" >= "allocatedAt");
+  @@index([assetId])
+  @@index([holderEmployeeId])
+  @@index([holderDepartmentId])
+  @@index([status])
+}
+
+model TransferRequest {
+  id     String         @id @default(cuid())
+  status TransferStatus @default(REQUESTED)
+
+  allocationId String
+  allocation   Allocation @relation(fields: [allocationId], references: [id])
+
+  fromEmployeeId String
+  fromEmployee   User   @relation("TransferFromEmployee", fields: [fromEmployeeId], references: [id])
+
+  toEmployeeId String
+  toEmployee   User   @relation("TransferToEmployee", fields: [toEmployeeId], references: [id])
+
+  reason String? // shown as "Reason" textarea on Screen 5 (Allocation & Transfer)
+
+  approvedById String?
+  approvedBy   User?   @relation("TransferApprovedBy", fields: [approvedById], references: [id])
+
+  requestedAt DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([allocationId])
+  @@index([status])
+  @@index([approvedById])
+}
+
+// ----------------------------------------------------------------------------
+// BOOKING
+// ----------------------------------------------------------------------------
+
+model Booking {
+  id     String        @id @default(cuid())
+  status BookingStatus @default(UPCOMING)
+
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id])
+
+  bookedById String
+  bookedBy   User   @relation(fields: [bookedById], references: [id])
+
+  startTime DateTime
+  endTime   DateTime
+  purpose   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // RAW MIGRATION REQUIRED (btree_gist + EXCLUDE, P1-only migration):
+  //   CREATE EXTENSION IF NOT EXISTS btree_gist;
+  //   ALTER TABLE "Booking" ADD CONSTRAINT no_overlapping_bookings
+  //     EXCLUDE USING GIST ("assetId" WITH =, tstzrange("startTime","endTime",'[)') WITH &&)
+  //     WHERE (status IN ('UPCOMING','ONGOING'));
+  // RAW MIGRATION REQUIRED (check):
+  //   ALTER TABLE "Booking" ADD CONSTRAINT booking_end_after_start CHECK ("endTime" > "startTime");
+  @@index([assetId])
+  @@index([status])
+  @@index([startTime, endTime])
+}
+
+// ----------------------------------------------------------------------------
+// MAINTENANCE
+// ----------------------------------------------------------------------------
+
+model MaintenanceRequest {
+  id          String              @id @default(cuid())
+  status      MaintenanceStatus   @default(PENDING)
+  priority    MaintenancePriority @default(MEDIUM)
+  description String
+
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id])
+
+  raisedById String
+  raisedBy   User   @relation("MaintenanceRaisedBy", fields: [raisedById], references: [id])
+
+  approvedById String?
+  approvedBy   User?   @relation("MaintenanceApprovedBy", fields: [approvedById], references: [id])
+
+  technicianName String?
+  approvedAt     DateTime?
+  resolvedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // RAW MIGRATION REQUIRED (partial unique index):
+  //   CREATE UNIQUE INDEX one_active_maintenance_per_asset
+  //     ON "MaintenanceRequest" ("assetId") WHERE status NOT IN ('REJECTED','RESOLVED');
+  @@index([assetId])
+  @@index([status])
+}
+
+// ----------------------------------------------------------------------------
+// AUDIT
+// ----------------------------------------------------------------------------
+
+model AuditCycle {
+  id     String           @id @default(cuid())
+  name   String
+  status AuditCycleStatus @default(OPEN)
+
+  scopeDepartmentId String?
+  startDate         DateTime
+  endDate           DateTime
+  closedAt          DateTime?
+
+  createdById String
+  createdBy   User   @relation("AuditCreatedBy", fields: [createdById], references: [id])
+
+  auditors AuditCycleAuditor[]
+  items    AuditItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model AuditCycleAuditor {
+  id String @id @default(cuid())
+
+  auditCycleId String
+  auditCycle   AuditCycle @relation(fields: [auditCycleId], references: [id])
+
+  auditorId String
+  auditor   User   @relation(fields: [auditorId], references: [id])
+
+  @@unique([auditCycleId, auditorId])
+  @@index([auditorId])
+}
+
+model AuditItem {
+  id                 String             @id @default(cuid())
+  expectedLocation   String? // "Expected location" column on Screen 8 (Asset Audit)
+  verificationStatus VerificationStatus @default(PENDING)
+  notes              String?
+  verifiedAt         DateTime?
+
+  auditCycleId String
+  auditCycle   AuditCycle @relation(fields: [auditCycleId], references: [id])
+
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id])
+
+  verifiedById String?
+  verifiedBy   User?   @relation("AuditVerifiedBy", fields: [verifiedById], references: [id])
+
+  // "Each asset verified only once per audit cycle" — business invariant
+  @@unique([auditCycleId, assetId])
+  @@index([assetId])
+}
+
+// ----------------------------------------------------------------------------
+// NOTIFICATION
+// ----------------------------------------------------------------------------
+
 model Notification {
   id                String           @id @default(cuid())
-  recipientId       String
-  recipient         User             @relation(fields: [recipientId], references: [id])
   type              NotificationType
   message           String
   relatedEntityType String
   relatedEntityId   String
   isRead            Boolean          @default(false)
-  createdAt         DateTime         @default(now())
 
+  recipientId String
+  recipient   User   @relation(fields: [recipientId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  // Dedup key — prevents duplicate notifications for the same event/recipient.
+  @@unique([type, relatedEntityId, recipientId])
   @@index([recipientId, isRead, createdAt])
-  @@index([relatedEntityType, relatedEntityId, type])
 }
 
-model ActivityLog {
-  id               String   @id @default(cuid())
-  actorId          String
-  actor            User     @relation(fields: [actorId], references: [id])
-  actionType       String
-  targetEntityType String
-  targetEntityId   String
-  description      String
-  oldValue         Json?
-  newValue         Json?
-  createdAt        DateTime @default(now())
+// ----------------------------------------------------------------------------
+// ACTIVITY LOG — append-only, never modified
+// ----------------------------------------------------------------------------
 
-  @@index([actorId])
-  @@index([targetEntityType, targetEntityId])
-  @@index([createdAt])
+model ActivityLog {
+  id         String   @id @default(cuid())
+  action     String // e.g. ASSET_ALLOCATED, STATUS_CHANGED, ROLE_CHANGED
+  entityType String
+  entityId   String
+  oldValue   Json?
+  newValue   Json?
+
+  actorId String
+  actor   User   @relation(fields: [actorId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([entityType, entityId])
 }

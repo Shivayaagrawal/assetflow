@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: assetflow
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/init-extensions.sql:/docker-entrypoint-initdb.d/init-extensions.sql:ro
@@ -16,24 +16,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
-  app:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://assetflow:${POSTGRES_PASSWORD}@postgres:5432/assetflow?schema=public&connection_limit=10&pool_timeout=20
-      DIRECT_URL: postgresql://assetflow:${POSTGRES_PASSWORD}@postgres:5432/assetflow?schema=public
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
-      BETTER_AUTH_URL: http://localhost:3000
-      CRON_SECRET: ${CRON_SECRET}
-      NODE_ENV: production
-    ports:
-      - "3000:3000"
 
 volumes:
   pgdata:

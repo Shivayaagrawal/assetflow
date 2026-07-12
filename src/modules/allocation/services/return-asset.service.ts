@@ -39,17 +39,16 @@ export class ReturnAssetService {
       const closed = await allocRepo.close(
         allocation.id,
         new Date(),
-        input.conditionCheckinNotes
+        input.conditionNotes
       );
 
       await assetRepo.updateStatus(allocation.assetId, "AVAILABLE");
 
       await logActivity(tx, {
         actorId: user.id,
-        actionType: "ASSET_RETURNED",
-        targetEntityType: "Asset",
-        targetEntityId: allocation.assetId,
-        description: `${allocation.asset?.assetTag ?? allocation.assetId} returned`,
+        action: "ASSET_RETURNED",
+        entityType: "Asset",
+        entityId: allocation.assetId,
         oldValue: { status: "ALLOCATED" },
         newValue: { status: "AVAILABLE" },
       });

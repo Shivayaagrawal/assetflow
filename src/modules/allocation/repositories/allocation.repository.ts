@@ -9,14 +9,14 @@ export class AllocationRepository {
   findActiveByAsset(assetId: string) {
     return this.db.allocation.findFirst({
       where: { assetId, status: "ACTIVE" },
-      include: { employee: true, department: true },
+      include: { holderEmployee: true, holderDepartment: true },
     });
   }
 
   findById(id: string) {
     return this.db.allocation.findUnique({
       where: { id },
-      include: { asset: true, employee: true },
+      include: { asset: true, holderEmployee: true },
     });
   }
 
@@ -30,7 +30,7 @@ export class AllocationRepository {
       data: {
         status: "RETURNED" satisfies AllocationStatus,
         actualReturnDate,
-        conditionCheckinNotes: notes,
+        conditionNotes: notes,
       },
     });
   }

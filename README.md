@@ -65,16 +65,40 @@ flowchart LR
 git clone https://github.com/Shivayaagrawal/assetflow.git
 cd assetflow
 cp .env.example .env
-# Fill POSTGRES_PASSWORD, BETTER_AUTH_SECRET, CRON_SECRET
 
 docker compose up -d postgres
-npm install
 npx prisma migrate dev
-npx prisma db seed
+npm run seed
 npm run dev
 ```
 
-Health check: `GET http://localhost:3000/api/health`
+Set `POSTGRES_PASSWORD`, `BETTER_AUTH_SECRET`, and `CRON_SECRET` in `.env` before the first migrate (see `.env.example`).
+
+Health check: `GET http://localhost:3000/api/health` — runs `SELECT 1` through Prisma.
+
+---
+
+## Troubleshooting
+
+If Prisma reports `P1010` (user denied access) or password authentication failed:
+
+1. Check Docker Postgres is running:
+   ```bash
+   docker ps
+   ```
+2. If not running:
+   ```bash
+   docker compose up -d postgres
+   ```
+3. Confirm `.env` uses port **5433** (Docker maps `5433` → container `5432`):
+   ```
+   DATABASE_URL=postgresql://assetflow:...@localhost:5433/assetflow
+   ```
+4. If Homebrew PostgreSQL is using port 5432, either stop it:
+   ```bash
+   brew services stop postgresql@17
+   ```
+   or keep using Docker on **5433** (recommended — no conflict with other local databases).
 
 ---
 
@@ -92,7 +116,7 @@ assetflow/
 ├── backend/
 │   ├── database/constraints.md
 │   └── engineering/        # State transitions, edge cases, permissions
-├── prisma/schema.prisma    # 17 models — P1-owned after lock
+├── prisma/schema.prisma    # 16 core models + Better Auth tables
 ├── src/
 │   ├── app/                # Routing only
 │   ├── modules/            # Domain modules (identity, asset, booking, …)

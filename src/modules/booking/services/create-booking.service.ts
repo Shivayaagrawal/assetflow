@@ -45,10 +45,9 @@ export class CreateBookingService {
 
       await logActivity(tx, {
         actorId: user.id,
-        actionType: "BOOKING_CREATED",
-        targetEntityType: "Booking",
-        targetEntityId: booking.id,
-        description: `${asset.assetTag} booked`,
+        action: "BOOKING_CREATED",
+        entityType: "Booking",
+        entityId: booking.id,
         newValue: { startTime: input.startTime, endTime: input.endTime },
       });
 

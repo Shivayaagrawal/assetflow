@@ -8,26 +8,26 @@ export async function runOverdueScan() {
       status: "ACTIVE",
       expectedReturnDate: { lt: now },
     },
-    include: { asset: true, employee: true },
+    include: { asset: true, holderEmployee: true },
   });
 
   let created = 0;
 
   for (const allocation of overdue) {
-    if (!allocation.employeeId) continue;
+    if (!allocation.holderEmployeeId) continue;
 
     await prisma.$transaction(async (tx) => {
       const existing = await tx.notification.findFirst({
         where: {
           relatedEntityId: allocation.id,
           type: "OVERDUE_RETURN_ALERT",
-          recipientId: allocation.employeeId!,
+          recipientId: allocation.holderEmployeeId!,
         },
       });
       if (existing) return;
 
       await createNotification(tx, {
-        recipientId: allocation.employeeId!,
+        recipientId: allocation.holderEmployeeId!,
         type: "OVERDUE_RETURN_ALERT",
         message: `${allocation.asset.name} was due back ${allocation.expectedReturnDate?.toISOString()}`,
         relatedEntityType: "Allocation",

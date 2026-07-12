@@ -41,7 +41,7 @@ export class AllocateAssetService {
       const allocation = await allocRepo.create({
         asset: { connect: { id: asset.id } },
         holderType: "EMPLOYEE",
-        employee: { connect: { id: input.employeeId } },
+        holderEmployee: { connect: { id: input.employeeId } },
         expectedReturnDate: input.expectedReturnDate,
         status: "ACTIVE",
       });
@@ -58,10 +58,9 @@ export class AllocateAssetService {
 
       await logActivity(tx, {
         actorId: user.id,
-        actionType: "ASSET_ALLOCATED",
-        targetEntityType: "Asset",
-        targetEntityId: asset.id,
-        description: `${asset.assetTag} allocated`,
+        action: "ASSET_ALLOCATED",
+        entityType: "Asset",
+        entityId: asset.id,
         newValue: { allocationId: allocation.id, employeeId: input.employeeId },
       });
 

@@ -10,7 +10,7 @@ export type AllocateAssetInput = z.infer<typeof allocateAssetSchema>;
 
 export const returnAssetSchema = z.object({
   allocationId: z.string().min(1),
-  conditionCheckinNotes: z.string().optional(),
+  conditionNotes: z.string().optional(),
 });
 
 export type ReturnAssetInput = z.infer<typeof returnAssetSchema>;

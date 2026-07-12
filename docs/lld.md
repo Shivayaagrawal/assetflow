@@ -97,53 +97,198 @@ Modules never import from other modules. Cross-module orchestration happens insi
 
 ## 2. Prisma Schema Overview
 
-### 2.1 Model Inventory (17 core + 1 optional)
+### 2.1 Model Inventory (16 core + Better Auth)
+
+Frozen lean ERD — matches HLD workflows, all 10 screens, and Odoo problem statement. EXCLUDE constraints, partial unique indexes, CHECK constraints, and state transitions live in [§2.3](#23-database-constraints-raw-sql-migrations) and service logic, not in this diagram.
 
 ```mermaid
 erDiagram
-  User ||--o{ Session : has
-  User ||--o{ Account : has
-  User }o--|| Department : belongs_to
-  Department ||--o{ Department : parent
-  Department ||--o| User : headed_by
-  AssetCategory ||--o{ Asset : categorizes
-  Asset ||--o{ Allocation : has
-  Asset ||--o{ Booking : has
-  Asset ||--o{ MaintenanceRequest : has
-  Asset ||--o{ AuditItem : verified_in
-  Allocation ||--o| TransferRequest : may_trigger
-  AuditCycle ||--o{ AuditCycleAuditor : has
-  AuditCycle ||--o{ AuditItem : contains
-  User ||--o{ Notification : receives
-  User ||--o{ ActivityLog : performs
 
-  User {
+%% Identity
+User ||--o{ Session : has
+User ||--o{ Account : has
+User }o--|| Department : belongs_to
+Department ||--o| User : headed_by
+Department ||--o{ Department : parent_of
+
+%% Organization
+AssetCategory ||--o{ Asset : categorizes
+Department ||--o{ Asset : owns
+
+%% Allocation
+Asset ||--o{ Allocation : allocated
+User ||--o{ Allocation : employee_holder
+Department ||--o{ Allocation : department_holder
+
+Allocation ||--o{ TransferRequest : transfer
+
+User ||--o{ TransferRequest : requested_by
+User ||--o{ TransferRequest : requested_to
+User ||--o{ TransferRequest : approved_by
+
+%% Booking
+Asset ||--o{ Booking : booked
+User ||--o{ Booking : books
+
+%% Maintenance
+Asset ||--o{ MaintenanceRequest : maintenance
+User ||--o{ MaintenanceRequest : raises
+User ||--o{ MaintenanceRequest : approves
+
+%% Audit
+AuditCycle ||--o{ AuditCycleAuditor : assigns
+AuditCycle ||--o{ AuditItem : contains
+
+User ||--o{ AuditCycle : creates
+User ||--o{ AuditCycleAuditor : assigned_as
+User ||--o{ AuditItem : verifies
+
+Asset ||--o{ AuditItem : audited
+
+%% Notifications
+User ||--o{ Notification : receives
+
+%% Activity Log
+User ||--o{ ActivityLog : performs
+
+User {
     string id PK
     string email UK
+    string name
     enum role
-    string departmentId FK
     enum status
-  }
-  Asset {
+    string departmentId FK
+    boolean emailVerified
+    datetime createdAt
+}
+
+Session {
+    string id PK
+    string userId FK
+    string token UK
+    datetime expiresAt
+}
+
+Account {
+    string id PK
+    string userId FK
+    string providerId
+    string accountId UK
+}
+
+Verification {
+    string id PK
+    string identifier
+    string value
+    datetime expiresAt
+}
+
+Department {
+    string id PK
+    string name UK
+    enum status
+    string parentId FK
+    string headId FK
+}
+
+AssetCategory {
+    string id PK
+    string name UK
+    json customFields
+}
+
+Asset {
     string id PK
     string assetTag UK
     string serialNumber UK
+    string name
     enum status
-    bool isBookable
-  }
-  Allocation {
+    boolean isBookable
+    string categoryId FK
+    string departmentId FK
+    decimal acquisitionCost
+}
+
+Allocation {
     string id PK
     string assetId FK
-    enum status
     enum holderType
-  }
-  Booking {
+    string holderEmployeeId FK
+    string holderDepartmentId FK
+    enum status
+    datetime allocatedAt
+    datetime actualReturnDate
+}
+
+TransferRequest {
+    string id PK
+    string allocationId FK
+    string fromEmployeeId FK
+    string toEmployeeId FK
+    string approvedById FK
+    enum status
+    string reason
+}
+
+Booking {
     string id PK
     string assetId FK
+    string bookedById FK
     datetime startTime
     datetime endTime
     enum status
-  }
+}
+
+MaintenanceRequest {
+    string id PK
+    string assetId FK
+    string raisedById FK
+    string approvedById FK
+    enum status
+    enum priority
+}
+
+AuditCycle {
+    string id PK
+    string name
+    string createdById FK
+    enum status
+    datetime startDate
+    datetime endDate
+}
+
+AuditCycleAuditor {
+    string id PK
+    string auditCycleId FK
+    string auditorId FK
+}
+
+AuditItem {
+    string id PK
+    string auditCycleId FK
+    string assetId FK
+    string verifiedById FK
+    string expectedLocation
+    enum verificationStatus
+}
+
+Notification {
+    string id PK
+    string recipientId FK
+    enum type
+    string relatedEntityId
+    boolean isRead
+}
+
+ActivityLog {
+    string id PK
+    string actorId FK
+    string action
+    string entityType
+    string entityId
+    json oldValue
+    json newValue
+}
 ```
 
 ### 2.2 Enums

@@ -6,10 +6,9 @@ export async function logActivity(
   tx: TxClient,
   input: {
     actorId: string;
-    actionType: string;
-    targetEntityType: string;
-    targetEntityId: string;
-    description: string;
+    action: string;
+    entityType: string;
+    entityId: string;
     oldValue?: unknown;
     newValue?: unknown;
   }
@@ -17,10 +16,9 @@ export async function logActivity(
   return tx.activityLog.create({
     data: {
       actorId: input.actorId,
-      actionType: input.actionType,
-      targetEntityType: input.targetEntityType,
-      targetEntityId: input.targetEntityId,
-      description: input.description,
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId,
       oldValue: input.oldValue ?? undefined,
       newValue: input.newValue ?? undefined,
     },

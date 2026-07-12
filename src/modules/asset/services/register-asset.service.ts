@@ -28,7 +28,6 @@ export class RegisterAssetService {
         category: { connect: { id: input.categoryId } },
         acquisitionDate: input.acquisitionDate,
         acquisitionCost: input.acquisitionCost,
-        condition: input.condition,
         location: input.location,
         isBookable: input.isBookable,
         status: "AVAILABLE",
@@ -36,10 +35,9 @@ export class RegisterAssetService {
 
       await logActivity(tx, {
         actorId: user.id,
-        actionType: "ASSET_REGISTERED",
-        targetEntityType: "Asset",
-        targetEntityId: asset.id,
-        description: `${asset.assetTag} registered`,
+        action: "ASSET_REGISTERED",
+        entityType: "Asset",
+        entityId: asset.id,
         newValue: { status: asset.status },
       });
 

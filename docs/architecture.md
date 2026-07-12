@@ -155,19 +155,16 @@ Idempotency rule: every mutation answers "if repeated, what happens?" — see [l
 
 ## Docker
 
+Local development uses **PostgreSQL 16 in Docker only** (no Redis, message queues, or extra services).
+
 ```bash
-# Dev — Postgres only
-docker compose up -d postgres
+docker compose up -d postgres   # localhost:5433 → container 5432
 npm run dev
-
-# Full stack
-docker compose up --build
-
-# Dev hot-reload
-docker compose -f docker-compose.yml -f docker/docker-compose.override.yml up
 ```
 
-Health: `GET /api/health` returns 503 when DB is unreachable.
+`DATABASE_URL` must point at `localhost:5433` (see `.env.example`). This avoids conflicts with Homebrew PostgreSQL or other projects on port 5432.
+
+Health: `GET /api/health` runs `SELECT 1` via Prisma; returns 503 when DB is unreachable.
 
 ---
 

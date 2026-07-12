@@ -70,18 +70,18 @@ async function main() {
     data: {
       name: "Field Ops (East)",
       status: "ACTIVE",
-      parentDepartmentId: fieldOps.id,
+      parentId: fieldOps.id,
     },
   });
 
   const electronics = await prisma.assetCategory.create({
-    data: { name: "Electronics", type: "HARDWARE" },
+    data: { name: "Electronics" },
   });
   const furniture = await prisma.assetCategory.create({
-    data: { name: "Furniture", type: "FIXED" },
+    data: { name: "Furniture" },
   });
   const rooms = await prisma.assetCategory.create({
-    data: { name: "Conference Rooms", type: "BOOKABLE" },
+    data: { name: "Conference Rooms" },
   });
 
   const admin = await createAuthUser({
@@ -164,7 +164,7 @@ async function main() {
     data: {
       assetId: laptop.id,
       holderType: "EMPLOYEE",
-      employeeId: priya.id,
+      holderEmployeeId: priya.id,
       allocatedAt: new Date("2026-03-12"),
       status: "ACTIVE",
     },
@@ -188,7 +188,7 @@ async function main() {
     data: {
       assetId: projector.id,
       raisedById: priya.id,
-      issueDescription: "Projector bulb not turning on",
+      description: "Projector bulb not turning on",
       priority: "HIGH",
       status: "PENDING",
     },

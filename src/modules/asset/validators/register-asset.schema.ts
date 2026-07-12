@@ -6,7 +6,6 @@ export const registerAssetSchema = z.object({
   categoryId: z.string().min(1),
   acquisitionDate: z.coerce.date(),
   acquisitionCost: z.coerce.number().min(0),
-  condition: z.enum(["NEW", "GOOD", "FAIR", "POOR"]).default("GOOD"),
   location: z.string().min(1),
   isBookable: z.boolean().default(false),
 });
