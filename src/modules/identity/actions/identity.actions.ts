@@ -1,3 +1,5 @@
+"use server";
+
 import { deactivateEmployeeService } from "@/modules/identity/services/deactivate-employee.service";
 import { updateEmployeeRoleService } from "@/modules/identity/services/update-employee-role.service";
 import { employeeRoleSchema } from "@/modules/identity/validators/employee-role.schema";

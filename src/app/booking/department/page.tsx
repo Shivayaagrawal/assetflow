@@ -1,5 +1,4 @@
 import {
-  bookResourceForDepartment,
   listBookableAssets,
   listUpcomingDepartmentBookings,
 } from "@/modules/booking/actions/booking.actions";

@@ -1,3 +1,5 @@
+"use server";
+
 import { createAssetCategoryService } from "@/modules/organization/services/create-asset-category.service";
 import { createDepartmentService } from "@/modules/organization/services/create-department.service";
 import { deactivateCategoryService } from "@/modules/organization/services/deactivate-category.service";
