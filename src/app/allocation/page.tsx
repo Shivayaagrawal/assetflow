@@ -11,6 +11,7 @@ import {
   listAvailableAssetsForAllocation,
   listPendingTransferRequestsForManager,
   listTransferableAllocations,
+  getAllocationById,
 } from "@/modules/allocation/queries/allocation.queries";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -42,7 +43,11 @@ async function createAllocation(formData: FormData) {
   });
 
   if (!result.success) {
-    redirect(`/allocation?error=${encodeURIComponent(result.error.message)}`);
+    const params = new URLSearchParams({ error: result.error.message });
+    if (result.meta?.allocationId) {
+      params.set("conflictAllocationId", String(result.meta.allocationId));
+    }
+    redirect(`/allocation?${params.toString()}`);
   }
 
   revalidatePath("/allocation");
@@ -92,7 +97,12 @@ export default async function AllocationPage({
   const params = (await searchParams) ?? {};
   const error = firstParam(params.error);
   const status = firstParam(params.status);
+  const conflictAllocationId = firstParam(params.conflictAllocationId);
   const message = allocationMessage(status);
+
+  const conflictAllocation = conflictAllocationId
+    ? await getAllocationById(conflictAllocationId)
+    : null;
 
   const [assets, employees, allocations, transferableAllocations, pendingTransfers] =
     await Promise.all([
@@ -124,6 +134,20 @@ export default async function AllocationPage({
       {error ? (
         <section className="card" style={{ borderColor: "#cf222e", marginBottom: 18 }}>
           <p style={{ color: "#cf222e", fontWeight: 700, margin: 0 }}>{error}</p>
+          {conflictAllocation ? (
+            <div style={{ marginTop: 12 }}>
+              <p className="muted" style={{ margin: "0 0 8px" }}>
+                {conflictAllocation.asset.assetTag} is held by{" "}
+                {conflictAllocation.holderEmployee?.name ??
+                  conflictAllocation.holderDepartment?.name ??
+                  "another holder"}
+                . Request a transfer instead.
+              </p>
+              <a className="button secondary" href="#transfer-form">
+                Transfer?
+              </a>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -192,11 +216,12 @@ export default async function AllocationPage({
       </section>
 
       <section className="grid two" style={{ marginBottom: 18 }}>
-        <form action={createTransferRequest} className="card form-grid">
+        <form action={createTransferRequest} className="card form-grid" id="transfer-form">
           <h2 className="card-title span-full">Request Transfer</h2>
           <label className="span-full">
             Allocated Asset
             <select
+              defaultValue={conflictAllocation?.id ?? ""}
               disabled={transferableAllocations.length === 0}
               name="allocationId"
               required

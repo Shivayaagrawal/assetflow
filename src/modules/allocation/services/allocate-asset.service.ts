@@ -6,10 +6,8 @@ import { AllocationRepository } from "@/modules/allocation/repositories/allocati
 import type { AllocateAssetInput } from "@/modules/allocation/validators/allocation.schema";
 import { createNotification } from "@/modules/notification/services/create-notification.service";
 import { logActivity } from "@/modules/activity/services/log-activity.service";
-import {
-  ConflictError,
-  NotFoundError,
-} from "@/shared/errors/app-error";
+import { AllocationConflictError } from "@/shared/errors/allocation-conflict.error";
+import { NotFoundError } from "@/shared/errors/app-error";
 import type { SessionUser } from "@/shared/types/action-result";
 import { withTransaction } from "@/shared/transactions/with-transaction";
 
@@ -27,7 +25,15 @@ export class AllocateAssetService {
 
     const active = await this.allocations.findActiveByAsset(input.assetId);
     if (active) {
-      throw new ConflictError("ASSET_004");
+      const holderName =
+        active.holderEmployee?.name ??
+        active.holderDepartment?.name ??
+        "another holder";
+      throw new AllocationConflictError({
+        allocationId: active.id,
+        holderName,
+        assetId: input.assetId,
+      });
     }
 
     AssetPolicy.assertCanAllocate(user, asset);

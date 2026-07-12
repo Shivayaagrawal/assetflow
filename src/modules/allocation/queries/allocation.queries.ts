@@ -89,6 +89,26 @@ export async function listTransferableAllocations() {
   });
 }
 
+export async function getAllocationById(allocationId: string) {
+  await requireRole("ASSET_MANAGER", "ADMIN");
+
+  return prisma.allocation.findUnique({
+    where: { id: allocationId },
+    select: {
+      id: true,
+      asset: {
+        select: { assetTag: true, name: true },
+      },
+      holderEmployee: {
+        select: { id: true, name: true },
+      },
+      holderDepartment: {
+        select: { id: true, name: true },
+      },
+    },
+  });
+}
+
 export async function listPendingTransferRequestsForManager() {
   await requireRole("ASSET_MANAGER", "ADMIN");
 
