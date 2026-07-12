@@ -34,6 +34,11 @@ export class DecideTransferService {
       const allocRepo = new AllocationRepository(tx);
       const assetRepo = new AssetRepository(tx);
 
+      const latest = await transferRepo.findByIdOrThrow(transfer.id);
+      if (latest.status !== "REQUESTED") {
+        throw new ConflictError("ALLOC_004");
+      }
+
       if (input.decision === "REJECTED") {
         const rejected = await transferRepo.reject(transfer.id, user.id);
 

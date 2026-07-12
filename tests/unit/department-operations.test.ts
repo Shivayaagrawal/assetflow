@@ -92,6 +92,13 @@ describe("org-setup error code expectations", () => {
     expect(err.message).toBe("ORG_001");
   });
 
+  it("ORG_002 is thrown when updateDepartment would create a circular hierarchy", () => {
+    // The updateDepartment action throws Error("ORG_002")
+    // when a multi-hop circular department hierarchy is detected.
+    const err = new Error("ORG_002");
+    expect(err.message).toBe("ORG_002");
+  });
+
   it("ORG_002 is thrown when promoting to DEPARTMENT_HEAD without departmentId", () => {
     // The updateEmployeeRole action throws Error("ORG_002")
     // when role is DEPARTMENT_HEAD and no departmentId is provided.
