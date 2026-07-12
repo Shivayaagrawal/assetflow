@@ -17,6 +17,7 @@ export const AuditPolicy = {
   },
 
   assertCanVerify(user: SessionUser, assignedAuditorIds: string[]) {
+    if (MANAGER_ROLES.has(user.role)) return;
     if (!assignedAuditorIds.includes(user.id)) {
       throw new AuthorizationError("AUTH_007");
     }

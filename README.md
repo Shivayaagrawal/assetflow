@@ -354,6 +354,7 @@ npm run seed
 |----------|---------|
 | [docs/hld.md](docs/hld.md) | System context, modules, design decisions |
 | [docs/lld.md](docs/lld.md) | Schema, API contracts, sequence diagrams |
+| [docs/user-perspective-erd.md](docs/user-perspective-erd.md) | Role-based ERD — Employee, Dept Head, Manager, Admin |
 | [docs/execution-plan.md](docs/execution-plan.md) | Tier 1/2/3 plan and validation gates |
 | [docs/architecture.md](docs/architecture.md) | Docker, CI, auth layers, notifications |
 | [docs/business-invariants.md](docs/business-invariants.md) | Domain rules |
