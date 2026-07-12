@@ -45,6 +45,13 @@ export default async function ReportsPage() {
             <Row key={item.assetId} label={item.assetName} value={item.count} />
           ))}
         </ReportCard>
+
+        <ReportCard title="Audit Verification Status">
+          <Row label="Verified" value={reports.auditReport.verified} />
+          <Row label="Missing" value={reports.auditReport.missing} />
+          <Row label="Damaged" value={reports.auditReport.damaged} />
+          <Row label="Pending verification" value={reports.auditReport.pending} />
+        </ReportCard>
       </section>
     </main>
   );

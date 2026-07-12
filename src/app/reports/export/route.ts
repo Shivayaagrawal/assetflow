@@ -35,6 +35,10 @@ export async function GET() {
       item.count,
       item.location,
     ]),
+    ["Audit Report", "Verified", reports.auditReport.verified, ""],
+    ["Audit Report", "Missing", reports.auditReport.missing, ""],
+    ["Audit Report", "Damaged", reports.auditReport.damaged, ""],
+    ["Audit Report", "Pending verification", reports.auditReport.pending, ""],
   ];
 
   const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");

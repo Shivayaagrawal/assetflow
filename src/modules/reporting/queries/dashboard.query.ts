@@ -145,8 +145,16 @@ export async function getReportsOverview(departmentId?: string) {
     ? allocationDepartmentFilter(scopedDepartmentId)
     : undefined;
 
-  const [utilizationGroups, idleAssets, mostUsedGroups, maintenanceGroups] =
-    await Promise.all([
+  const [
+    utilizationGroups,
+    idleAssets,
+    mostUsedGroups,
+    maintenanceGroups,
+    verifiedCount,
+    missingCount,
+    damagedCount,
+    pendingCount,
+  ] = await Promise.all([
       prisma.allocation.groupBy({
         by: ["holderDepartmentId"],
         where: allocationWhere,
@@ -188,6 +196,10 @@ export async function getReportsOverview(departmentId?: string) {
         orderBy: { _count: { id: "desc" } },
         take: 10,
       }),
+      prisma.auditItem.count({ where: { verificationStatus: "VERIFIED" } }),
+      prisma.auditItem.count({ where: { verificationStatus: "MISSING" } }),
+      prisma.auditItem.count({ where: { verificationStatus: "DAMAGED" } }),
+      prisma.auditItem.count({ where: { verificationStatus: "PENDING" } }),
     ]);
 
   const departmentIds = utilizationGroups
@@ -243,5 +255,11 @@ export async function getReportsOverview(departmentId?: string) {
         count: item._count.id,
       };
     }),
+    auditReport: {
+      verified: verifiedCount,
+      missing: missingCount,
+      damaged: damagedCount,
+      pending: pendingCount,
+    },
   };
 }
