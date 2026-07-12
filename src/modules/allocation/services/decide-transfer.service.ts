@@ -34,8 +34,13 @@ export class DecideTransferService {
       const allocRepo = new AllocationRepository(tx);
       const assetRepo = new AssetRepository(tx);
 
-      const latest = await transferRepo.findByIdOrThrow(transfer.id);
-      if (latest.status !== "REQUESTED") {
+      const rows = await tx.$queryRaw<[{ status: string }]>`
+        SELECT status FROM "TransferRequest"
+        WHERE id = ${transfer.id}
+        FOR UPDATE
+      `;
+      const latestStatus = rows[0]?.status;
+      if (!latestStatus || latestStatus !== "REQUESTED") {
         throw new ConflictError("ALLOC_004");
       }
 
