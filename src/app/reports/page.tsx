@@ -1,4 +1,5 @@
 import { getReportsOverview } from "@/features/dashboard/queries";
+import Link from "next/link";
 
 export default async function ReportsPage() {
   const reports = await getReportsOverview();
@@ -11,7 +12,9 @@ export default async function ReportsPage() {
           <h1 className="page-title">Reports Overview</h1>
           <p className="page-subtitle">Operational signals for utilization and follow-up.</p>
         </div>
-        <button type="button">Export report</button>
+        <Link className="button" href="/reports/export">
+          Export report
+        </Link>
       </header>
 
       <section className="grid three">
@@ -19,15 +22,15 @@ export default async function ReportsPage() {
           {reports.utilizationByDepartment.map((item) => (
             <Row
               key={item.departmentId ?? "unassigned"}
-              label={item.departmentId ?? "Unassigned"}
-              value={item._count.id}
+              label={item.departmentName}
+              value={item.count}
             />
           ))}
         </ReportCard>
 
         <ReportCard title="Most used assets">
           {reports.mostUsedAssets.map((item) => (
-            <Row key={item.assetId} label={item.assetId} value={item._count.id} />
+            <Row key={item.assetId} label={item.assetName} value={item.count} />
           ))}
         </ReportCard>
 
@@ -39,7 +42,7 @@ export default async function ReportsPage() {
 
         <ReportCard title="Maintenance Frequency">
           {reports.maintenanceFrequency.map((item) => (
-            <Row key={item.assetId} label={item.assetId} value={item._count.id} />
+            <Row key={item.assetId} label={item.assetName} value={item.count} />
           ))}
         </ReportCard>
       </section>

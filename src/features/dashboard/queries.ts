@@ -131,7 +131,7 @@ export async function getReportsOverview(departmentId?: string) {
     ? { departmentId: scopedDepartmentId }
     : undefined;
 
-  const [utilizationByDepartment, idleAssets, mostUsedAssets, maintenanceFrequency] =
+  const [utilizationGroups, idleAssets, mostUsedGroups, maintenanceGroups] =
     await Promise.all([
       prisma.allocation.groupBy({
         by: ["departmentId"],
@@ -171,10 +171,58 @@ export async function getReportsOverview(departmentId?: string) {
       }),
     ]);
 
+  const departmentIds = utilizationGroups
+    .map((item) => item.departmentId)
+    .filter((id): id is string => Boolean(id));
+  const assetIds = Array.from(
+    new Set([
+      ...mostUsedGroups.map((item) => item.assetId),
+      ...maintenanceGroups.map((item) => item.assetId),
+    ])
+  );
+
+  const [departments, assets] = await Promise.all([
+    prisma.department.findMany({
+      where: { id: { in: departmentIds } },
+      select: { id: true, name: true },
+    }),
+    prisma.asset.findMany({
+      where: { id: { in: assetIds } },
+      select: { id: true, name: true, assetTag: true, location: true },
+    }),
+  ]);
+
+  const departmentNameById = new Map(
+    departments.map((department) => [department.id, department.name])
+  );
+  const assetById = new Map(assets.map((asset) => [asset.id, asset]));
+
   return {
-    utilizationByDepartment,
+    utilizationByDepartment: utilizationGroups.map((item) => ({
+      departmentId: item.departmentId,
+      departmentName: item.departmentId
+        ? departmentNameById.get(item.departmentId) ?? "Unknown department"
+        : "Unassigned",
+      count: item._count.id,
+    })),
     idleAssets,
-    mostUsedAssets,
-    maintenanceFrequency,
+    mostUsedAssets: mostUsedGroups.map((item) => {
+      const asset = assetById.get(item.assetId);
+      return {
+        assetId: item.assetId,
+        assetName: asset ? `${asset.assetTag} - ${asset.name}` : "Unknown asset",
+        location: asset?.location ?? "Unknown location",
+        count: item._count.id,
+      };
+    }),
+    maintenanceFrequency: maintenanceGroups.map((item) => {
+      const asset = assetById.get(item.assetId);
+      return {
+        assetId: item.assetId,
+        assetName: asset ? `${asset.assetTag} - ${asset.name}` : "Unknown asset",
+        location: asset?.location ?? "Unknown location",
+        count: item._count.id,
+      };
+    }),
   };
 }
