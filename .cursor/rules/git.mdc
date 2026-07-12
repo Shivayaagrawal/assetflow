@@ -35,3 +35,14 @@ Every PR must:
 - Pass lint, typecheck, tests, and build in CI
 - Include tests for new business rules (not just CRUD)
 - Keep changes focused — one concern per PR when possible
+
+## Commit Attribution
+
+Commits must show **only the human author** — never Cursor or `cursoragent`.
+
+- Disable **Agents > Attribution** (Commit + PR) in Cursor Settings
+- Set `attributeCommitsToAgent` and `attributePRsToAgent` to `false` in `~/.cursor/cli-config.json`
+- Enable project hooks once per clone: `git config core.hooksPath .githooks`
+- Never use `git commit --trailer` or add `Co-authored-by:` / `Made-with: Cursor`
+- Use plain `git commit -m "..."` only
+- If attribution slips in, amend the commit to remove it before push
