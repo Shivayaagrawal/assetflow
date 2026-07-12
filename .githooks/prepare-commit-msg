@@ -1,0 +1,12 @@
+#!/bin/sh
+# Strip Cursor agent attribution from commit messages.
+COMMIT_MSG_FILE="$1"
+[ -f "$COMMIT_MSG_FILE" ] || exit 0
+
+if sed --version >/dev/null 2>&1; then
+  sed -i '/cursoragent@cursor\.com/d;/Made-with: Cursor/d;/Co-authored-by: Cursor/d' "$COMMIT_MSG_FILE"
+else
+  sed -i '' '/cursoragent@cursor\.com/d;/Made-with: Cursor/d;/Co-authored-by: Cursor/d' "$COMMIT_MSG_FILE"
+fi
+
+exit 0
