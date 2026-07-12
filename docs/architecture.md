@@ -124,12 +124,16 @@ Frontend: SWR polling against notification queries.
 
 ## Auth — Defense in Depth
 
+Engineering reference: [auth-lifecycle.md](../backend/engineering/auth-lifecycle.md) · [security.md](../backend/engineering/security.md)
+
 | Layer | File | Role |
 |-------|------|------|
 | 1 | `middleware.ts` | Cookie-existence redirect (optimistic) |
-| 2 | `shared/auth/session.ts` | `requireSession()`, `assertRole()`, `assertDepartmentAccess()` |
+| 2 | `shared/auth/session.ts` | `requireSession()` — token validation |
+| 3 | `shared/auth/session.ts` | `requireSessionUser()` — fresh DB lookup (role + status) |
+| 4 | `modules/*/policies/` | `canX()` / `assertRole()` / `assertDepartmentAccess()` |
 
-Every Server Action starts with Layer 2. Authorization decisions live in policies — not inline role checks.
+Every Server Action starts with `requireSessionUser()`. Authorization decisions live in policies — not inline role checks.
 
 ---
 

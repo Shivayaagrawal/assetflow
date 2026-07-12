@@ -150,7 +150,7 @@ erDiagram
 
 ```prisma
 enum UserRole { EMPLOYEE DEPARTMENT_HEAD ASSET_MANAGER ADMIN }
-enum UserStatus { ACTIVE INACTIVE }
+enum UserStatus { ACTIVE INACTIVE SUSPENDED }
 enum DepartmentStatus { ACTIVE INACTIVE }
 enum AssetStatus { AVAILABLE ALLOCATED RESERVED UNDER_MAINTENANCE LOST RETIRED DISPOSED }
 enum AllocationStatus { ACTIVE RETURNED }
@@ -218,8 +218,10 @@ ALTER TABLE "Asset" ADD CONSTRAINT cost_non_negative CHECK ("acquisitionCost" >=
 
 | Table | Index | Purpose |
 |-------|-------|---------|
-| `Asset` | `assetTag`, `serialNumber` | Search (Screen 4) |
-| `Asset` | `status`, `categoryId`, `location` | Filter |
+| `Asset` | `assetTag`, `serialNumber` | Search (Screen 4) — primary ILIKE targets |
+| `Asset` | `status`, `categoryId`, `location` | Search filter + list filter |
+| `Asset` | `name` | Search (ILIKE, ranked after exact tag/serial match) |
+| `Department` | `name` | Search filter (join via allocation or asset scope) |
 | All FKs | `@@index` on foreign keys | Join performance |
 | `Notification` | `(recipientId, isRead, createdAt)` | Unread feed |
 | `ActivityLog` | `(createdAt DESC)` | Recent activity |
@@ -244,7 +246,24 @@ CREATE SEQUENCE asset_tag_seq START 1;
 
 Never use `SELECT MAX(asset_tag)` or `count() + 1` — both are race-prone under concurrency.
 
+**Seed alignment:** After `prisma/seed.ts` inserts assets with explicit tags (e.g. `AF-0114`), reset the sequence so the next `nextval()` cannot collide:
+
+```sql
+SELECT setval('asset_tag_seq', GREATEST(
+  COALESCE((
+    SELECT MAX(CAST(SUBSTRING("assetTag" FROM 4) AS INTEGER))
+    FROM "Asset"
+    WHERE "assetTag" ~ '^AF-[0-9]+$'
+  ), 0),
+  200
+));
+```
+
+`prisma/seed.ts` runs this automatically after asset inserts. Non-numeric seed tags (e.g. `AF-ROOM-B2`) are excluded from the max calculation.
+
 ### Live Query Contracts (Dashboard / Reporting)
+
+Dashboard metrics are computed from **live SQL aggregations** on each request — not cached in application memory or static JSON.
 
 All KPIs and reports are computed per request from PostgreSQL:
 
@@ -257,18 +276,39 @@ All KPIs and reports are computed per request from PostgreSQL:
 
 Reports use `GROUP BY department_id`, `GROUP BY category_id` with `COUNT`, `SUM`, `AVG` — no cached JSON.
 
+### Activity Log Contract
+
+Every mutation inside a transaction calls `logActivity(tx, …)`:
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `actorId` | Yes | From session |
+| `action` | Yes | e.g. `ASSET_ALLOCATED`, `STATUS_CHANGED` |
+| `entityType` / `entityId` | Yes | Target record |
+| `oldValue` | On status transitions | Previous state snapshot |
+| `newValue` | On status transitions | New state snapshot |
+| `createdAt` | Auto | Append-only |
+
+Status transitions (asset, allocation, maintenance, booking, role change) **must** populate both `oldValue` and `newValue`.
+
 ---
 
 ## 4. API & Server Action Contracts
 
 ### 4.1 Identity (`modules/identity/`)
 
+Engineering reference: [auth-lifecycle.md](../backend/engineering/auth-lifecycle.md)
+
 | Action | Auth | Rule |
 |--------|------|------|
 | `signUp` | Public | Always creates `EMPLOYEE`; ignores any `role` in body |
-| `signIn` | Public | Session cookie on success |
-| `forgotPassword` | Public | 15-min token, hashed, one-time |
-| `promoteEmployee` | `ADMIN` only | Only path to change roles |
+| `signIn` | Public | Blocks `INACTIVE` / `SUSPENDED` → `AUTH_003` |
+| `signOut` | Authenticated | Deletes current session; clears cookie; redirect `/login` |
+| `forgotPassword` | Public | 15-min token, hashed, one-time; invalidates prior tokens |
+| `resetPassword` | Public | Validates token; invalidates all sessions |
+| `changePassword` | Authenticated | P1; invalidates other sessions |
+| `promoteEmployee` | `ADMIN` only | Only path to change roles; writes activity log |
+| `deactivateEmployee` | `ADMIN` only | Sets `INACTIVE`; deletes all sessions; blocks if last admin |
 
 ### 4.2 Organization (`modules/organization/`)
 
@@ -285,7 +325,7 @@ Reports use `GROUP BY department_id`, `GROUP BY category_id` with `COUNT`, `SUM`
 | Action | Auth | Rule |
 |--------|------|------|
 | `registerAsset` | `ASSET_MANAGER` | Auto-generates tag, enforces unique serial |
-| `searchAssets` | Authenticated | ILIKE on tag, serial, name, location; ranked |
+| `searchAssets` | Authenticated | ILIKE on `assetTag`, `serialNumber`, `name`, `location`; filter by `status`, `categoryId`, department; ranked (exact tag/serial first) |
 | `updateAssetStatus` | `ASSET_MANAGER` | `AssetStateMachine` validation |
 
 ### 4.4 Allocation (`modules/allocation/`)
@@ -485,17 +525,23 @@ export async function createNotification(
 
 ## 7. Auth Layer Detail
 
+Engineering reference: [auth-lifecycle.md](../backend/engineering/auth-lifecycle.md)
+
 ```mermaid
 flowchart TB
   Request["Incoming Request"] --> MW["middleware.ts<br/>cookie exists?"]
   MW -->|no cookie| Redirect["Redirect /login"]
   MW -->|cookie| Page["Page / Action"]
-  Page --> RS["requireSession() — shared/auth/session"]
+  Page --> RS["requireSession() — Better Auth token"]
   RS -->|invalid| Err401["AUTH_002 UNAUTHORIZED"]
-  RS -->|valid| Policy["Policy.canX() / assertRole()"]
+  RS -->|valid| DB["prisma.user.findUnique — fresh role + status"]
+  DB -->|INACTIVE or SUSPENDED| Err403a["AUTH_003 → logout"]
+  DB -->|ACTIVE| Policy["Policy.canX() / assertRole()"]
   Policy -->|denied| Err403["AUTH_007 FORBIDDEN"]
   Policy -->|allowed| Service["Application Service"]
 ```
+
+**Invariant:** Role and status changes take effect on the next request. Sessions never retain revoked permissions.
 
 ### Department scoping (P2)
 

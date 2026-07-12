@@ -149,7 +149,7 @@ No production screen depends on hardcoded lists. Dropdowns query repositories (`
 
 ### Dashboard and Reports
 
-Dashboard KPIs are computed **per request** via SQL — never cached JSON:
+Dashboard KPIs are computed **per request** via live SQL aggregations — never cached in application memory or static JSON:
 
 ```sql
 SELECT COUNT(*) FROM "Asset" WHERE status = 'AVAILABLE';
@@ -239,13 +239,17 @@ Time-based alerts (`Overdue Return`) use a **cron-guarded scan route** (`GET /ap
 
 ### 6.3 Auth — Defense in Depth
 
+Engineering reference: [auth-lifecycle.md](../backend/engineering/auth-lifecycle.md)
+
 | Layer | Responsibility |
 |-------|----------------|
 | Middleware | Optimistic cookie-existence redirect (fast, not secure alone) |
-| `requireSession()` / `requireRole()` | Full session verification on every Server Action and Route Handler |
+| `requireSession()` | Better Auth token validation |
+| `requireSessionUser()` | Fresh `User` lookup from PostgreSQL (role + status) |
 | `requireDepartmentAccess()` | Department Head scoped to `session.departmentId` |
+| Policies | Authorization per action |
 
-Identity is always derived from the server session — never from request body fields.
+Identity is always derived from the server session plus a **live database lookup** — never from request body fields or stale cookie payload.
 
 ---
 

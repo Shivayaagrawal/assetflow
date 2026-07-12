@@ -12,7 +12,7 @@ Consistent error codes returned in the API `error` field. Format: `{ code, messa
 |------|---------|------|
 | `AUTH_001` | Invalid credentials | 401 |
 | `AUTH_002` | Session expired | 401 |
-| `AUTH_003` | Account is inactive | 403 |
+| `AUTH_003` | Account is inactive or suspended | 403 |
 | `AUTH_004` | Reset token is invalid or expired | 400 |
 | `AUTH_005` | Reset token has already been used | 400 |
 | `AUTH_006` | Email is already registered | 409 |

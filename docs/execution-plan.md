@@ -1,5 +1,7 @@
 # AssetFlow — Odoo Hackathon 2026 Execution Plan
 
+**Architecture is frozen.** Do not redesign. Build modules to match documented contracts; complete P0 tests and smoke scenarios.
+
 **12 July 2026 · 9:00 AM – 5:00 PM IST · Team of 3**
 
 Enterprise Asset & Resource Management System — personalized build plan aligned with the spec and mockup.
@@ -14,7 +16,7 @@ Enterprise Asset & Resource Management System — personalized build plan aligne
 
 ## Tier 1 — Must Be 100% Real
 
-- **Auth**: Signup creates Employee only; roles promoted only via Admin Employee Directory; Better Auth sessions; forgot-password flow
+- **Auth**: Signup creates Employee only; roles promoted only via Admin Employee Directory; Better Auth sessions; forgot-password flow; logout; deactivation revokes sessions; per-request DB role/status lookup
 - **Organization Setup** (Screen 3): Departments, categories, employee directory with promote action
 - **Asset Registration** (Screen 4): Auto tag, 7-state lifecycle, server-enforced transitions, per-asset history
 - **Allocation & Transfer** (Screen 5): Partial unique index; conflict surfaces holder name + transfer offer
@@ -156,3 +158,5 @@ Before demo, verify Odoo's "dynamic data" requirement:
 - [lld.md](./lld.md) — implementation contracts
 - [architecture.md](./architecture.md) — infrastructure (Docker, CI, auth)
 - [business-invariants.md](./business-invariants.md) — domain rules
+- [backend/engineering/auth-lifecycle.md](../backend/engineering/auth-lifecycle.md) — auth lifecycle (login, logout, deactivation, session revocation)
+- [backend/engineering/security.md](../backend/engineering/security.md) — password policy, rate limiting, file upload

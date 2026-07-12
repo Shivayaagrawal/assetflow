@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import {
   AuthenticationError,
   AuthorizationError,
@@ -13,33 +14,42 @@ export async function requireSession() {
   return session;
 }
 
-export function toSessionUser(session: {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role?: string;
-    status?: string;
-    departmentId?: string | null;
-  };
+export function toSessionUser(user: {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: SessionUser["status"];
+  departmentId: string | null;
 }): SessionUser {
-  const user = session.user;
-  if (user.status === "INACTIVE") {
+  if (user.status !== "ACTIVE") {
     throw new AuthenticationError("AUTH_003");
   }
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: (user.role as UserRole) ?? "EMPLOYEE",
-    status: (user.status as SessionUser["status"]) ?? "ACTIVE",
-    departmentId: user.departmentId ?? null,
+    role: user.role,
+    status: user.status,
+    departmentId: user.departmentId,
   };
 }
 
 export async function requireSessionUser(): Promise<SessionUser> {
   const session = await requireSession();
-  return toSessionUser(session);
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      departmentId: true,
+    },
+  });
+  if (!user) throw new AuthenticationError("AUTH_002");
+  return toSessionUser(user);
 }
 
 export function assertRole(user: SessionUser, ...roles: UserRole[]) {

@@ -194,6 +194,18 @@ async function main() {
     },
   });
 
+  // Align sequence above seeded numeric tags so nextval() cannot collide
+  await prisma.$executeRaw`
+    SELECT setval('asset_tag_seq', GREATEST(
+      COALESCE((
+        SELECT MAX(CAST(SUBSTRING("assetTag" FROM 4) AS INTEGER))
+        FROM "Asset"
+        WHERE "assetTag" ~ '^AF-[0-9]+$'
+      ), 0),
+      200
+    ))
+  `;
+
   console.log("Seed complete.");
   console.log("Demo logins (password: " + SEED_PASSWORD + "):");
   console.log("  admin@assetflow.demo — ADMIN");

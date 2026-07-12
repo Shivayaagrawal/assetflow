@@ -13,15 +13,18 @@ Never trust `userId`, `departmentId`, or `role` from request body, query params,
 Always derive identity and permissions server-side:
 
 ```
-Session → Policy → Application Service
+Cookie → Session → DB lookup → Policy → Application Service
 ```
 
 ## Rules
 
 - Identity comes from the authenticated session (JWT, cookie, or session store) — not from the client payload.
+- **Re-fetch `User` from the database on every protected request** — role and status from cookie/session payload are never trusted for authorization.
 - Authorization checks happen in middleware/guards or service layer before business logic runs.
 - Department Head (and similar scoped roles) must always verify `departmentId` against the session user's department.
 - Policies encode "can this user do this action on this resource?" — keep them explicit and testable.
+- Deactivating a user deletes all Better Auth sessions and returns `AUTH_003` on the next request.
+- Role changes take effect immediately; demoted users lose elevated permissions on the next request.
 
 ## Examples
 

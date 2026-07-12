@@ -41,6 +41,12 @@ Server Action → Validator → Policy → Application Service → Repository �
 | activity | Timeline, audit trail |
 | reporting | Read-only dashboards |
 
+## Architecture Status
+
+**Frozen.** Do not redesign. Remaining work is faithful implementation of documented contracts, P0 workflow tests, live PostgreSQL reads on every screen, and end-to-end smoke scenarios.
+
+---
+
 ## Documentation Index
 
 | Document | Contents |
@@ -50,6 +56,8 @@ Server Action → Validator → Policy → Application Service → Repository �
 | [docs/architecture.md](../docs/architecture.md) | Docker, CI, auth, notifications |
 | [docs/errors.md](../docs/errors.md) | Canonical error catalogue |
 | [database/constraints.md](./database/constraints.md) | PostgreSQL guarantees |
+| [engineering/auth-lifecycle.md](./engineering/auth-lifecycle.md) | Login, logout, sessions, deactivation |
+| [engineering/security.md](./engineering/security.md) | Password policy, rate limiting, file upload |
 | [engineering/state-transition-matrix.md](./engineering/state-transition-matrix.md) | Asset status transitions |
-| [engineering/edge-cases.md](./engineering/edge-cases.md) | Prioritized edge cases |
+| [engineering/edge-cases.md](./engineering/edge-cases.md) | Prioritized edge cases + pre-demo checklist |
 | [engineering/permission-matrix.md](./engineering/permission-matrix.md) | RBAC matrix |
