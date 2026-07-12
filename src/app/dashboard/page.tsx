@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RecentActivityFeed } from "@/components/RecentActivityFeed";
 import { getEmployeeDashboard } from "@/modules/reporting/queries/employee-dashboard.query";
 import { getDepartmentDashboard } from "@/modules/reporting/queries/dashboard.query";
 import { assertRole, requireSessionUser } from "@/shared/auth/session";
@@ -239,22 +240,7 @@ export default async function DashboardPage() {
 
       <section className="card" style={{ marginTop: 24 }}>
         <h2 className="card-title">Recent Activity Log</h2>
-        <div className="list">
-          {dashboard.recentActivity.map((log) => {
-            const newVal = log.newValue as Record<string, unknown> | null;
-            const title = newVal && typeof newVal === "object" && "description" in newVal
-              ? String(newVal.description)
-              : `${log.action.replace(/_/g, " ")} (${log.entityType})`;
-            return (
-              <ListItem
-                key={log.id}
-                title={title}
-                meta={`Performed by ${log.actor?.name ?? "System"} on ${log.createdAt.toLocaleString()}`}
-              />
-            );
-          })}
-          {dashboard.recentActivity.length === 0 && <Empty />}
-        </div>
+        <RecentActivityFeed items={dashboard.recentActivity} />
       </section>
     </main>
   );
