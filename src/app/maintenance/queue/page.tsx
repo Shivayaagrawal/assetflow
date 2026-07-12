@@ -18,7 +18,10 @@ async function approveRequest(formData: FormData) {
 
 async function rejectRequest(formData: FormData) {
   "use server";
-  await rejectMaintenance({ requestId: String(formData.get("requestId")) });
+  await rejectMaintenance({
+    requestId: String(formData.get("requestId")),
+    reason: String(formData.get("reason") || "") || undefined,
+  });
   revalidatePath("/maintenance/queue");
 }
 
@@ -91,8 +94,9 @@ export default async function MaintenanceQueuePage() {
                           <input type="hidden" name="requestId" value={request.id} />
                           <button type="submit">Approve</button>
                         </form>
-                        <form action={rejectRequest}>
+                        <form action={rejectRequest} className="form-grid" style={{ gap: 6 }}>
                           <input type="hidden" name="requestId" value={request.id} />
+                          <input name="reason" placeholder="Rejection reason" />
                           <button className="danger" type="submit">
                             Reject
                           </button>

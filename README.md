@@ -75,27 +75,33 @@ npm run dev
 
 **Password for all seed accounts:** `Password123!`
 
-### Demo accounts (one login per role)
+### Demo accounts
 
-| Role | Email | Demo scenario |
-|------|-------|---------------|
-| **Admin** | `admin@assetflow.demo` | Org Setup, promote roles |
-| **Asset Manager** | `maya@assetflow.demo` | Register assets, allocate, audits, reports |
-| **Department Head** | `aditi@assetflow.demo` | Engineering approvals, dept reports |
-| **Department Head** | `rohan@assetflow.demo` | Facilities department |
-| **Employee** | `priya@assetflow.demo` | Allocated laptop AF-0114 |
-| **Employee** | `procurement@assetflow.demo` | Room B2 booking (overlap demo) |
-| **Employee** | `arjun@assetflow.demo` | Past return history |
+| Role | Email | What you'll see when you log in |
+|------|-------|----------------------------------|
+| **Admin** | `admin@assetflow.demo` | Org Setup (3 tabs), org-wide reports, audit creation |
+| **Asset Manager** | `maya@assetflow.demo` | Operations dashboard, allocate assets, maintenance kanban, open audit |
+| **Asset Manager** | `vikram@assetflow.demo` | Facilities assets, closed audit history, dept maintenance |
+| **Department Head** | `aditi@assetflow.demo` | Engineering dashboard, **1 overdue return**, **1 pending transfer**, approvals |
+| **Department Head** | `rohan@assetflow.demo` | Facilities dashboard, dept bookings, reports |
+| **Department Head** | `sana@assetflow.demo` | INACTIVE — login blocked (demo deactivation) |
+| **Employee** | `priya@assetflow.demo` | Laptop AF-0114 (overdue), pending maintenance, transfer request, bookings, notifications |
+| **Employee** | `arjun@assetflow.demo` | Docking station AF-0155, transfer target, past return history |
+| **Employee** | `raj@assetflow.demo` | Standing desk AF-0020 — try booking Room B2, raise maintenance |
+| **Employee** | `procurement@assetflow.demo` | Room B2 booked today 9–10 AM (overlap demo) |
+| **Employee** | `neha@assetflow.demo` | Field Ops East employee |
 
 Signup at `/signup` always creates **Employee**. Promote via **Admin → Org Setup → Employee Directory**.
 
+Re-seed anytime: `npm run seed`
+
 ### Suggested 5-minute judge walkthrough
 
-1. `admin@assetflow.demo` → Org Setup → promote a user to Asset Manager
-2. `maya@assetflow.demo` → Register asset → `/assets/new`
-3. `maya@assetflow.demo` → Reports → visual analytics charts
-4. `priya@assetflow.demo` → Book resource → `/booking`
-5. `maya@assetflow.demo` → Activity → audit trail of who registered/booked/allocated
+1. `maya@assetflow.demo` → `/allocation` → allocate AF-0114 to Raj → **blocked: held by Priya**
+2. `aditi@assetflow.demo` → `/allocation/approvals` → approve Priya → Arjun transfer
+3. `procurement@assetflow.demo` → `/booking` → Room B2 overlap test (9:30–10:30 rejected)
+4. `maya@assetflow.demo` → `/maintenance/queue` → approve Priya laptop maintenance
+5. `priya@assetflow.demo` → `/notifications` → inbox with assignment, overdue, booking alerts
 
 ---
 

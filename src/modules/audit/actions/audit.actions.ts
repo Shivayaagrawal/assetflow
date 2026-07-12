@@ -54,6 +54,11 @@ export async function listAuditCycles() {
   return new AuditRepository().listOpen();
 }
 
+export async function listClosedAuditCycles() {
+  await requireSessionUser();
+  return new AuditRepository().listClosed();
+}
+
 export async function getAuditCycle(cycleId: string) {
   await requireSessionUser();
   return new AuditRepository().findByIdOrThrow(cycleId);

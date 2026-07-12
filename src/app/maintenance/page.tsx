@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MaintenancePriority, MaintenanceStatus } from "@prisma/client";
 import {
   raiseMaintenanceRequest,
+  approveMaintenance,
   assignTechnician,
   startMaintenance,
   resolveMaintenance,
@@ -21,6 +22,17 @@ async function submitMaintenance(formData: FormData) {
     assetId: String(formData.get("assetId")),
     description: String(formData.get("description")),
     priority: formData.get("priority") as MaintenancePriority,
+  });
+
+  revalidatePath("/maintenance");
+  revalidatePath("/dashboard");
+}
+
+async function approveMaintenanceAction(formData: FormData) {
+  "use server";
+
+  await approveMaintenance({
+    requestId: String(formData.get("requestId")),
   });
 
   revalidatePath("/maintenance");
@@ -318,28 +330,42 @@ export default async function MaintenancePage() {
                       )}
                     </div>
                     <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-                      {req.status !== MaintenanceStatus.TECHNICIAN_ASSIGNED ? (
+                      {req.status === MaintenanceStatus.PENDING && (
                         <>
-                          <form action={assignTechnicianAction} className="form-grid" style={{ gap: 6, display: "flex", flexDirection: "column" }}>
+                          <form action={approveMaintenanceAction}>
                             <input type="hidden" name="requestId" value={req.id} />
-                            <input
-                              required
-                              name="technicianName"
-                              placeholder="Technician name"
-                              style={{ padding: "4px 8px", fontSize: 12 }}
-                            />
-                            <button className="secondary" type="submit" style={{ padding: "4px 8px", fontSize: 12 }}>
-                              Assign
+                            <button type="submit" style={{ padding: "6px 12px", fontSize: 12 }}>
+                              Approve
                             </button>
                           </form>
-                          <form action={rejectMaintenanceAction}>
+                          <form action={rejectMaintenanceAction} className="form-grid" style={{ gap: 6 }}>
                             <input type="hidden" name="requestId" value={req.id} />
-                            <button className="danger" type="submit" style={{ padding: "6px 12px", fontSize: 12 }}>
+                            <input
+                              name="reason"
+                              placeholder="Rejection reason"
+                              style={{ padding: "4px 8px", fontSize: 12 }}
+                            />
+                            <button className="danger" type="submit" style={{ padding: "4px 8px", fontSize: 12 }}>
                               Reject
                             </button>
                           </form>
                         </>
-                      ) : (
+                      )}
+                      {req.status === MaintenanceStatus.APPROVED && (
+                        <form action={assignTechnicianAction} className="form-grid" style={{ gap: 6, display: "flex", flexDirection: "column" }}>
+                          <input type="hidden" name="requestId" value={req.id} />
+                          <input
+                            required
+                            name="technicianName"
+                            placeholder="Technician name"
+                            style={{ padding: "4px 8px", fontSize: 12 }}
+                          />
+                          <button className="secondary" type="submit" style={{ padding: "4px 8px", fontSize: 12 }}>
+                            Assign
+                          </button>
+                        </form>
+                      )}
+                      {req.status === MaintenanceStatus.TECHNICIAN_ASSIGNED && (
                         <form action={startMaintenanceAction}>
                           <input type="hidden" name="requestId" value={req.id} />
                           <button type="submit" style={{ padding: "6px 12px", fontSize: 12 }}>

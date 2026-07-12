@@ -6,6 +6,7 @@ import { BookingCalendar } from "@/components/BookingCalendar";
 import {
   cancelBooking,
   createEmployeeBooking,
+  rescheduleBooking,
 } from "@/modules/booking/actions/booking.actions";
 import { formatDateTime } from "@/shared/format/date";
 
@@ -30,6 +31,13 @@ type BookingRow = {
   bookedBy?: { name: string };
 };
 
+function toDatetimeLocalValue(value: Date | string) {
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
 export function BookingClient({
   assets,
   bookings,
@@ -42,6 +50,9 @@ export function BookingClient({
   const [assetId, setAssetId] = useState(assets[0]?.id ?? "");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [reschedulingId, setReschedulingId] = useState<string | null>(null);
+  const [rescheduleStart, setRescheduleStart] = useState("");
+  const [rescheduleEnd, setRescheduleEnd] = useState("");
   const [message, setMessage] = useState<
     { kind: "success" | "error"; text: string } | null
   >(null);
@@ -92,6 +103,34 @@ export function BookingClient({
         kind: "error",
         text: error instanceof Error ? error.message : "Cancel failed.",
       });
+    }
+  }
+
+  function openReschedule(booking: BookingRow) {
+    setReschedulingId(booking.id);
+    setRescheduleStart(toDatetimeLocalValue(booking.startTime));
+    setRescheduleEnd(toDatetimeLocalValue(booking.endTime));
+    setMessage(null);
+  }
+
+  async function handleReschedule(bookingId: string) {
+    setMessage(null);
+    setIsSubmitting(true);
+    try {
+      await rescheduleBooking({
+        bookingId,
+        startTime: new Date(rescheduleStart),
+        endTime: new Date(rescheduleEnd),
+      });
+      setReschedulingId(null);
+      window.location.reload();
+    } catch (error) {
+      setMessage({
+        kind: "error",
+        text: error instanceof Error ? error.message : "Reschedule failed.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -209,14 +248,60 @@ export function BookingClient({
                       {formatDateTime(booking.endTime)} ({booking.status})
                     </p>
                     {booking.status === "UPCOMING" ? (
-                      <button
-                        className="secondary danger"
-                        onClick={() => handleCancel(booking.id)}
-                        style={{ marginTop: 8 }}
-                        type="button"
-                      >
-                        Cancel
-                      </button>
+                      <div className="actions-row" style={{ marginTop: 8 }}>
+                        <button
+                          className="secondary"
+                          onClick={() => openReschedule(booking)}
+                          type="button"
+                        >
+                          Reschedule
+                        </button>
+                        <button
+                          className="secondary danger"
+                          onClick={() => handleCancel(booking.id)}
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : null}
+                    {reschedulingId === booking.id ? (
+                      <div className="form-grid" style={{ marginTop: 12 }}>
+                        <label>
+                          New start
+                          <input
+                            onChange={(e) => setRescheduleStart(e.target.value)}
+                            required
+                            type="datetime-local"
+                            value={rescheduleStart}
+                          />
+                        </label>
+                        <label>
+                          New end
+                          <input
+                            onChange={(e) => setRescheduleEnd(e.target.value)}
+                            required
+                            type="datetime-local"
+                            value={rescheduleEnd}
+                          />
+                        </label>
+                        <div className="actions-row span-full">
+                          <button
+                            disabled={isSubmitting}
+                            onClick={() => handleReschedule(booking.id)}
+                            type="button"
+                          >
+                            Save new slot
+                          </button>
+                          <button
+                            className="secondary"
+                            onClick={() => setReschedulingId(null)}
+                            type="button"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
                     ) : null}
                   </article>
                 ))}

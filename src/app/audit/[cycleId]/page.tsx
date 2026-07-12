@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { getAuditCycle, listAuditCycles } from "@/modules/audit/actions/audit.actions";
 import { requireRole } from "@/lib/session";
 import { formatDate } from "@/shared/format/date";
-import { closeCycleAction, verifyItemAction } from "../audit-form-actions";
+import { AuditVerifyPanel } from "../AuditVerifyPanel";
+import { closeCycleAction } from "../audit-form-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,9 @@ export default async function AuditCyclePage({
   const canManage = user.role === "ASSET_MANAGER" || user.role === "ADMIN";
   const isAssignedAuditor = cycle.auditors.some((row) => row.auditorId === user.id);
   const canVerify = cycle.status === "OPEN" && (canManage || isAssignedAuditor);
+  const discrepancies = cycle.items.filter((item) =>
+    ["MISSING", "DAMAGED"].includes(item.verificationStatus)
+  );
 
   return (
     <main className="app-shell">
@@ -56,7 +60,34 @@ export default async function AuditCyclePage({
         </nav>
       </header>
 
-      {cycles.length > 1 && (
+      {cycle.status === "CLOSED" && discrepancies.length > 0 && (
+        <section className="card" style={{ marginBottom: 18, borderColor: "#cf222e" }}>
+          <h2 className="card-title">Discrepancy report</h2>
+          <p className="muted" style={{ margin: "0 0 12px" }}>
+            {discrepancies.length} flagged item{discrepancies.length === 1 ? "" : "s"} from this
+            cycle. Missing assets were marked Lost when the cycle closed.
+          </p>
+          <div className="list">
+            {discrepancies.map((item) => (
+              <article className="list-item discrepancy-row" key={item.id}>
+                <strong>
+                  {item.asset.assetTag} — {item.asset.name}
+                </strong>
+                <p className="muted" style={{ margin: "4px 0 0" }}>
+                  Status: {item.verificationStatus}
+                  {item.expectedLocation ? ` · Location: ${item.expectedLocation}` : ""}
+                  {item.verifiedBy ? ` · Verified by ${item.verifiedBy.name}` : ""}
+                </p>
+                {item.notes ? (
+                  <p style={{ margin: "6px 0 0" }}>{item.notes}</p>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {cycles.length > 1 && cycle.status === "OPEN" && (
         <section className="card" style={{ marginBottom: 18 }}>
           <h2 className="card-title">Switch cycle</h2>
           <div className="nav-row">
@@ -82,36 +113,19 @@ export default async function AuditCyclePage({
                 {item.asset.assetTag} — {item.asset.name}
               </strong>
               <p className="muted" style={{ margin: "4px 0 0" }}>
-                Expected: {item.expectedLocation ?? "—"} · Status:{" "}
-                {item.verificationStatus}
+                Expected: {item.expectedLocation ?? "—"} · Status: {item.verificationStatus}
                 {item.verifiedBy ? ` · by ${item.verifiedBy.name}` : ""}
               </p>
+              {item.notes ? (
+                <p style={{ margin: "6px 0 0" }}>Notes: {item.notes}</p>
+              ) : null}
 
               {canVerify && item.verificationStatus === "PENDING" && (
-                <div className="actions-row" style={{ marginTop: 10 }}>
-                  <form action={verifyItemAction}>
-                    <input type="hidden" name="auditCycleId" value={cycle.id} />
-                    <input type="hidden" name="assetId" value={item.asset.id} />
-                    <input type="hidden" name="verificationStatus" value="VERIFIED" />
-                    <button type="submit">Verified</button>
-                  </form>
-                  <form action={verifyItemAction}>
-                    <input type="hidden" name="auditCycleId" value={cycle.id} />
-                    <input type="hidden" name="assetId" value={item.asset.id} />
-                    <input type="hidden" name="verificationStatus" value="MISSING" />
-                    <button className="danger" type="submit">
-                      Missing
-                    </button>
-                  </form>
-                  <form action={verifyItemAction}>
-                    <input type="hidden" name="auditCycleId" value={cycle.id} />
-                    <input type="hidden" name="assetId" value={item.asset.id} />
-                    <input type="hidden" name="verificationStatus" value="DAMAGED" />
-                    <button className="secondary" type="submit">
-                      Damaged
-                    </button>
-                  </form>
-                </div>
+                <AuditVerifyPanel
+                  assetId={item.asset.id}
+                  auditCycleId={cycle.id}
+                  defaultExpectedLocation={item.expectedLocation}
+                />
               )}
             </article>
           ))}

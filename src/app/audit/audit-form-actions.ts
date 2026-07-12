@@ -31,6 +31,7 @@ export async function verifyItemAction(formData: FormData) {
       | "MISSING"
       | "DAMAGED",
     notes: String(formData.get("notes") || "") || undefined,
+    expectedLocation: String(formData.get("expectedLocation") || "") || undefined,
   });
 
   revalidatePath("/audit");

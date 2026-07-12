@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
+import { returnAsset } from "@/modules/allocation/actions/allocation.actions";
 import { requestTransfer } from "@/modules/allocation/actions/transfer.actions";
 import {
   listDepartmentPeers,
@@ -18,6 +19,23 @@ async function submitTransfer(formData: FormData) {
 
   revalidatePath("/allocation/my");
   revalidatePath("/dashboard");
+}
+
+async function submitReturn(formData: FormData) {
+  "use server";
+
+  const result = await returnAsset({
+    allocationId: String(formData.get("allocationId")),
+    conditionNotes: String(formData.get("conditionNotes") || "") || undefined,
+  });
+
+  if (!result.success) {
+    throw new Error(result.error?.message ?? "Return failed.");
+  }
+
+  revalidatePath("/allocation/my");
+  revalidatePath("/dashboard");
+  revalidatePath("/assets");
 }
 
 export default async function MyAllocationsPage() {
@@ -51,28 +69,47 @@ export default async function MyAllocationsPage() {
               {allocation.asset.location ?? "No location"} - {allocation.status}
             </p>
 
-            {allocation.status === "ACTIVE" && peers.length > 0 ? (
-              <form action={submitTransfer} className="form-grid" style={{ marginTop: 16 }}>
-                <input name="allocationId" type="hidden" value={allocation.id} />
-                <label className="span-full">
-                  Transfer to
-                  <select name="toEmployeeId" required>
-                    <option value="">Select colleague</option>
-                    {peers.map((peer) => (
-                      <option key={peer.id} value={peer.id}>
-                        {peer.name} - {peer.email}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="span-full">
-                  Reason
-                  <input name="reason" placeholder="Optional reason" />
-                </label>
-                <button className="span-full" type="submit">
-                  Request transfer
-                </button>
-              </form>
+            {allocation.status === "ACTIVE" ? (
+              <div style={{ marginTop: 16, display: "grid", gap: 16 }}>
+                <form action={submitReturn} className="form-grid">
+                  <input name="allocationId" type="hidden" value={allocation.id} />
+                  <label className="span-full">
+                    Condition check-in notes (optional)
+                    <textarea
+                      name="conditionNotes"
+                      placeholder="Note any damage, missing accessories, or general condition"
+                      rows={2}
+                    />
+                  </label>
+                  <button className="span-full secondary" type="submit">
+                    Return asset
+                  </button>
+                </form>
+
+                {peers.length > 0 ? (
+                  <form action={submitTransfer} className="form-grid">
+                    <input name="allocationId" type="hidden" value={allocation.id} />
+                    <label className="span-full">
+                      Transfer to
+                      <select name="toEmployeeId" required>
+                        <option value="">Select colleague</option>
+                        {peers.map((peer) => (
+                          <option key={peer.id} value={peer.id}>
+                            {peer.name} - {peer.email}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="span-full">
+                      Reason
+                      <input name="reason" placeholder="Optional reason" />
+                    </label>
+                    <button className="span-full" type="submit">
+                      Request transfer
+                    </button>
+                  </form>
+                ) : null}
+              </div>
             ) : null}
 
             {allocation.transferRequests.length > 0 ? (

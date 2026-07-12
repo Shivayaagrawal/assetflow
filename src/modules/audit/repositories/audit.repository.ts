@@ -49,6 +49,14 @@ export class AuditRepository {
     });
   }
 
+  listClosed() {
+    return this.db.auditCycle.findMany({
+      where: { status: "CLOSED" },
+      orderBy: { closedAt: "desc" },
+      include: cycleInclude,
+    });
+  }
+
   findOverlappingOpen(scopeDepartmentId: string | null, startDate: Date, endDate: Date) {
     return this.db.auditCycle.findFirst({
       where: {

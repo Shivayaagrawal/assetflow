@@ -39,6 +39,24 @@ export default async function DashboardPage() {
           <Metric label="Transfer requests" value={dashboard.transferRequests.length} />
         </section>
 
+        <section className="card" style={{ marginTop: 18 }}>
+          <h2 className="card-title">Quick actions</h2>
+          <nav className="nav-row">
+            <Link className="button secondary" href="/allocation/my">
+              My allocations
+            </Link>
+            <Link className="button secondary" href="/booking">
+              Book resource
+            </Link>
+            <Link className="button secondary" href="/maintenance">
+              Raise maintenance
+            </Link>
+            <Link className="button secondary" href="/notifications">
+              Notifications
+            </Link>
+          </nav>
+        </section>
+
         <section className="grid three" style={{ marginTop: 24 }}>
           <Panel title="My Allocations">
             {dashboard.allocations.map((allocation) => (
@@ -149,6 +167,27 @@ export default async function DashboardPage() {
           <Metric label="Pending Audits" value={pendingAudits} />
         </section>
 
+        <section className="card" style={{ marginTop: 18 }}>
+          <h2 className="card-title">Quick actions</h2>
+          <nav className="nav-row">
+            <Link className="button secondary" href="/assets/new">
+              Register asset
+            </Link>
+            <Link className="button secondary" href="/allocation">
+              Allocate asset
+            </Link>
+            <Link className="button secondary" href="/maintenance/queue">
+              Maintenance queue
+            </Link>
+            <Link className="button secondary" href="/audit">
+              Audit cycles
+            </Link>
+            <Link className="button secondary" href="/reports">
+              Reports
+            </Link>
+          </nav>
+        </section>
+
         <section className="card" style={{ marginTop: 24 }}>
           <h2 className="card-title">Recent Activity Log</h2>
           <div className="list">
@@ -213,9 +252,31 @@ export default async function DashboardPage() {
 
       <section className="grid metrics" aria-label="Department metrics">
         <Metric label="Active allocations" value={dashboard.metrics.activeAllocationCount} />
-        <Metric label="Overdue returns" value={dashboard.metrics.overdueAllocationCount} />
+        <Metric
+          label="Overdue returns"
+          value={dashboard.metrics.overdueAllocationCount}
+          highlight={dashboard.metrics.overdueAllocationCount > 0}
+        />
         <Metric label="Pending transfers" value={dashboard.metrics.pendingTransferCount} />
         <Metric label="Upcoming bookings" value={dashboard.metrics.upcomingBookingCount} />
+      </section>
+
+      <section className="card" style={{ marginTop: 18 }}>
+        <h2 className="card-title">Quick actions</h2>
+        <nav className="nav-row">
+          <Link className="button secondary" href="/allocation/approvals">
+            Transfer approvals
+          </Link>
+          <Link className="button secondary" href="/booking/department">
+            Book resource
+          </Link>
+          <Link className="button secondary" href="/reports">
+            Reports
+          </Link>
+          <Link className="button secondary" href="/maintenance/queue">
+            Maintenance queue
+          </Link>
+        </nav>
       </section>
 
       <section className="grid three" style={{ marginTop: 24 }}>
@@ -265,11 +326,21 @@ export default async function DashboardPage() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: number;
+  highlight?: boolean;
+}) {
   return (
-    <div className="card">
+    <div className="card" style={highlight ? { borderColor: "#cf222e" } : undefined}>
       <div className="muted">{label}</div>
-      <strong className="metric-value">{value}</strong>
+      <strong className="metric-value" style={highlight ? { color: "#cf222e" } : undefined}>
+        {value}
+      </strong>
     </div>
   );
 }

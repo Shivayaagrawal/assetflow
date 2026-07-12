@@ -1,7 +1,12 @@
 import type { SessionUser } from "@/shared/types/action-result";
 import { AuthorizationError } from "@/shared/errors/app-error";
 
-const MANAGER_ROLES = new Set<SessionUser["role"]>(["ASSET_MANAGER", "ADMIN"]);
+export const MANAGER_ALLOCATION_ROLES = new Set<SessionUser["role"]>([
+  "ASSET_MANAGER",
+  "ADMIN",
+]);
+
+const MANAGER_ROLES = MANAGER_ALLOCATION_ROLES;
 
 export const AllocationPolicy = {
   canAllocate(user: SessionUser) {

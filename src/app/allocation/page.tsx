@@ -63,6 +63,7 @@ async function closeAllocation(formData: FormData) {
 
   const result = await returnAsset({
     allocationId: String(formData.get("allocationId") ?? ""),
+    conditionNotes: String(formData.get("conditionNotes") ?? "") || undefined,
   });
 
   if (!result.success) {
@@ -366,8 +367,13 @@ export default async function AllocationPage({
                       <span className="status-pill">{allocation.status}</span>
                     </td>
                     <td>
-                      <form action={closeAllocation}>
+                      <form action={closeAllocation} className="form-grid" style={{ gap: 6 }}>
                         <input type="hidden" name="allocationId" value={allocation.id} />
+                        <input
+                          name="conditionNotes"
+                          placeholder="Condition notes"
+                          style={{ fontSize: 12, minHeight: 32 }}
+                        />
                         <button className="secondary" type="submit">
                           Return
                         </button>

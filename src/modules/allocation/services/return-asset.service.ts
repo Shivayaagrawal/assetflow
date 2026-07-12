@@ -1,10 +1,14 @@
-import { AllocationPolicy } from "@/modules/allocation/policies/allocation.policy";
+import {
+  AllocationPolicy,
+  MANAGER_ALLOCATION_ROLES,
+} from "@/modules/allocation/policies/allocation.policy";
 import { AllocationRepository } from "@/modules/allocation/repositories/allocation.repository";
 import { AssetStateMachine } from "@/modules/asset/domain/asset-state-machine";
 import { AssetRepository } from "@/modules/asset/repositories/asset.repository";
 import type { ReturnAssetInput } from "@/modules/allocation/validators/allocation.schema";
 import { logActivity } from "@/modules/activity/services/log-activity.service";
 import {
+  AuthorizationError,
   ConflictError,
   NotFoundError,
 } from "@/shared/errors/app-error";
@@ -25,6 +29,11 @@ export class ReturnAssetService {
 
     if (allocation.status === "RETURNED") {
       throw new ConflictError("ALLOC_003");
+    }
+
+    const isManager = MANAGER_ALLOCATION_ROLES.has(user.role);
+    if (!isManager && allocation.holderEmployeeId !== user.id) {
+      throw new AuthorizationError("AUTH_007");
     }
 
     const asset = await this.assets.findById(allocation.assetId);

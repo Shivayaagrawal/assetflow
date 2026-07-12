@@ -3,6 +3,7 @@ import { DepartmentPicker } from "@/components/DepartmentPicker";
 import {
   listAuditorCandidates,
   listAuditCycles,
+  listClosedAuditCycles,
 } from "@/modules/audit/actions/audit.actions";
 import { requireRole } from "@/lib/session";
 import { formatDate } from "@/shared/format/date";
@@ -18,6 +19,7 @@ export default async function AuditPage() {
     "EMPLOYEE"
   );
   const cycles = await listAuditCycles();
+  const closedCycles = await listClosedAuditCycles();
   const auditors = await listAuditorCandidates();
   const canManage = user.role === "ASSET_MANAGER" || user.role === "ADMIN";
 
@@ -98,6 +100,41 @@ export default async function AuditPage() {
             )}
           </div>
         </section>
+      </section>
+
+      <section className="card" style={{ marginTop: 18 }}>
+        <h2 className="card-title">Audit history</h2>
+        <p className="muted" style={{ margin: "0 0 12px" }}>
+          Closed cycles remain available for review, including discrepancy reports.
+        </p>
+        <div className="list">
+          {closedCycles.map((cycle) => {
+            const discrepancyCount = cycle.items.filter((item) =>
+              ["MISSING", "DAMAGED"].includes(item.verificationStatus)
+            ).length;
+
+            return (
+              <article className="list-item" key={cycle.id}>
+                <strong>{cycle.name}</strong>
+                <p className="muted" style={{ margin: "4px 0 8px" }}>
+                  Closed {cycle.closedAt ? formatDate(cycle.closedAt) : "—"} ·{" "}
+                  {discrepancyCount} discrepanc{discrepancyCount === 1 ? "y" : "ies"}
+                </p>
+                <p className="muted" style={{ margin: "0 0 10px" }}>
+                  {formatDate(cycle.startDate)} — {formatDate(cycle.endDate)}
+                </p>
+                <Link className="button secondary" href={`/audit/${cycle.id}`}>
+                  View report
+                </Link>
+              </article>
+            );
+          })}
+          {closedCycles.length === 0 && (
+            <p className="muted" style={{ margin: 0 }}>
+              No closed audit cycles yet.
+            </p>
+          )}
+        </div>
       </section>
     </main>
   );

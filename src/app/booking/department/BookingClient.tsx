@@ -2,7 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { bookResourceForDepartment } from "@/modules/booking/actions/booking.actions";
+import {
+  bookResourceForDepartment,
+  cancelBooking,
+  rescheduleBooking,
+} from "@/modules/booking/actions/booking.actions";
 import { formatDateTime } from "@/shared/format/date";
 
 type Asset = {
@@ -31,7 +35,6 @@ function friendlyError(error: unknown): string {
   if (!(error instanceof Error)) return "Something went wrong. Try again.";
   const msg = error.message;
 
-  // Handle both features/booking/actions.ts legacy codes and shared error codes
   if (msg === "BOOK_001" || msg === "BOOKING_003") {
     return "End time must be after start time.";
   }
@@ -50,6 +53,13 @@ function friendlyError(error: unknown): string {
   return msg || "Something went wrong. Try again.";
 }
 
+function toDatetimeLocalValue(value: Date | string) {
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
 export function BookingClient({
   assets,
   bookings,
@@ -62,6 +72,9 @@ export function BookingClient({
   const router = useRouter();
   const [message, setMessage] = useState<Message>(null);
   const [isPending, startTransition] = useTransition();
+  const [reschedulingId, setReschedulingId] = useState<string | null>(null);
+  const [rescheduleStart, setRescheduleStart] = useState("");
+  const [rescheduleEnd, setRescheduleEnd] = useState("");
 
   function runAction(action: () => Promise<unknown>, successText: string) {
     setMessage(null);
@@ -69,6 +82,7 @@ export function BookingClient({
       try {
         await action();
         setMessage({ kind: "success", text: successText });
+        setReschedulingId(null);
         router.refresh();
       } catch (error) {
         setMessage({ kind: "error", text: friendlyError(error) });
@@ -101,7 +115,7 @@ export function BookingClient({
           className="card form-grid"
         >
           <input type="hidden" name="departmentId" value={departmentId} />
-          
+
           <label className="span-full">
             Resource
             <select disabled={isPending} name="assetId" required>
@@ -129,7 +143,7 @@ export function BookingClient({
         </form>
 
         <section className="card">
-          <h2 className="card-title">Upcoming Bookings</h2>
+          <h2 className="card-title">Upcoming department bookings</h2>
           <div className="list">
             {bookings.map((booking) => (
               <article className="list-item" key={booking.id}>
@@ -139,6 +153,84 @@ export function BookingClient({
                 <p className="muted" style={{ margin: "4px 0 0" }}>
                   {formatDateTime(booking.startTime)} — {formatDateTime(booking.endTime)}
                 </p>
+                <div className="actions-row" style={{ marginTop: 8 }}>
+                  <button
+                    className="secondary"
+                    disabled={isPending}
+                    onClick={() => {
+                      setReschedulingId(booking.id);
+                      setRescheduleStart(toDatetimeLocalValue(booking.startTime));
+                      setRescheduleEnd(toDatetimeLocalValue(booking.endTime));
+                    }}
+                    type="button"
+                  >
+                    Reschedule
+                  </button>
+                  <button
+                    className="secondary danger"
+                    disabled={isPending}
+                    onClick={() =>
+                      runAction(
+                        () => cancelBooking(booking.id),
+                        "Booking cancelled."
+                      )
+                    }
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {reschedulingId === booking.id ? (
+                  <div className="form-grid" style={{ marginTop: 12 }}>
+                    <label>
+                      New start
+                      <input
+                        disabled={isPending}
+                        onChange={(e) => setRescheduleStart(e.target.value)}
+                        required
+                        type="datetime-local"
+                        value={rescheduleStart}
+                      />
+                    </label>
+                    <label>
+                      New end
+                      <input
+                        disabled={isPending}
+                        onChange={(e) => setRescheduleEnd(e.target.value)}
+                        required
+                        type="datetime-local"
+                        value={rescheduleEnd}
+                      />
+                    </label>
+                    <div className="actions-row span-full">
+                      <button
+                        disabled={isPending}
+                        onClick={() =>
+                          runAction(
+                            () =>
+                              rescheduleBooking({
+                                bookingId: booking.id,
+                                startTime: new Date(rescheduleStart),
+                                endTime: new Date(rescheduleEnd),
+                              }),
+                            "Booking rescheduled."
+                          )
+                        }
+                        type="button"
+                      >
+                        Save new slot
+                      </button>
+                      <button
+                        className="secondary"
+                        disabled={isPending}
+                        onClick={() => setReschedulingId(null)}
+                        type="button"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </article>
             ))}
             {bookings.length === 0 && <p className="muted">No bookings yet.</p>}
