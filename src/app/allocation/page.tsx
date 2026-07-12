@@ -198,8 +198,8 @@ export default async function AllocationPage({
                       {allocation.asset.assetTag} - {allocation.asset.name}
                     </td>
                     <td>
-                      {allocation.employee?.name ??
-                        allocation.department?.name ??
+                      {allocation.holderEmployee?.name ??
+                        allocation.holderDepartment?.name ??
                         "Unknown holder"}
                     </td>
                     <td>{allocation.allocatedAt.toLocaleDateString()}</td>

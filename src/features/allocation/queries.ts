@@ -71,14 +71,14 @@ export async function listActiveAllocations() {
           location: true,
         },
       },
-      employee: {
+      holderEmployee: {
         select: {
           id: true,
           name: true,
           email: true,
         },
       },
-      department: {
+      holderDepartment: {
         select: {
           id: true,
           name: true,
