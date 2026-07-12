@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getAssetDetail } from "@/features/assets/queries";
+import { getAssetDetail } from "@/modules/asset/queries/asset.queries";
 
 type PageParams = {
   assetId: string;

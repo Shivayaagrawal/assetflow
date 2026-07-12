@@ -1,4 +1,4 @@
-import { getAssetRegistrationCategories } from "@/features/assets/queries";
+import { getAssetRegistrationCategories } from "@/modules/asset/queries/asset.queries";
 import { requireRole } from "@/lib/session";
 import { AssetRegistrationForm } from "./AssetRegistrationForm";
 

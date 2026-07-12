@@ -7,7 +7,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { registerAsset } from "@/features/assets/actions";
+import { registerAsset } from "@/modules/asset/actions/asset.actions";
 
 type CategoryOption = {
   id: string;

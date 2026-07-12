@@ -3,8 +3,8 @@ import Link from "next/link";
 import {
   getAssetDirectoryFilters,
   listAssets,
-} from "@/features/assets/queries";
-import { assetDirectoryFilterSchema } from "@/features/assets/schemas";
+} from "@/modules/asset/queries/asset.queries";
+import { assetDirectoryFilterSchema } from "@/modules/asset/validators/asset-directory.schema";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
