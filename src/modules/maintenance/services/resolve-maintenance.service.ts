@@ -22,7 +22,7 @@ export class ResolveMaintenanceService {
     if (request.status === "REJECTED") {
       throw new ConflictError("MAINT_004");
     }
-    if (request.status !== "IN_PROGRESS" && request.status !== "TECHNICIAN_ASSIGNED") {
+    if (request.status !== "IN_PROGRESS") {
       throw new ConflictError("MAINT_005");
     }
 
@@ -39,8 +39,7 @@ export class ResolveMaintenanceService {
       const maintenanceRepo = new MaintenanceRequestRepository(tx);
       const assetRepo = new AssetRepository(tx);
 
-      const fromStatus =
-        request.status === "IN_PROGRESS" ? "IN_PROGRESS" : "TECHNICIAN_ASSIGNED";
+      const fromStatus = "IN_PROGRESS";
 
       await maintenanceRepo.updateStatus(requestId, fromStatus, {
         status: "RESOLVED",

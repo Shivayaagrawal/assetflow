@@ -49,6 +49,7 @@ const COLUMNS = [
   { key: "APPROVED", label: "Approved" },
   { key: "TECHNICIAN_ASSIGNED", label: "Technician assigned" },
   { key: "IN_PROGRESS", label: "In progress" },
+  { key: "RESOLVED", label: "Resolved" },
 ] as const;
 
 export default async function MaintenanceQueuePage() {
@@ -67,7 +68,7 @@ export default async function MaintenanceQueuePage() {
         </div>
       </header>
 
-      <section className="grid" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+      <section className="grid" style={{ gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}>
         {COLUMNS.map((column) => (
           <div className="card" key={column.key}>
             <h2 className="card-title">{column.label}</h2>

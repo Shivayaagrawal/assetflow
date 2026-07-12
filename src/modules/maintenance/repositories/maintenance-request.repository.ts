@@ -60,7 +60,7 @@ export class MaintenanceRequestRepository {
     return this.db.maintenanceRequest.findMany({
       where: {
         status: {
-          in: ["PENDING", "APPROVED", "TECHNICIAN_ASSIGNED", "IN_PROGRESS"],
+          in: ["PENDING", "APPROVED", "TECHNICIAN_ASSIGNED", "IN_PROGRESS", "RESOLVED"],
         },
       },
       orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
