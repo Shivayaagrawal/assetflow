@@ -1,6 +1,8 @@
-# Error Catalogue
-
 Consistent error codes returned in the API `error` field. Format: `{ code, message }`.
+
+**Implementation:** `src/shared/errors/codes.ts` · thrown via `AppError` subclasses.
+
+**Engineering reference:** [backend/engineering/error-catalog.md](../backend/engineering/error-catalog.md) (usage only — this file is canonical).
 
 ---
 

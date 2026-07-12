@@ -43,7 +43,7 @@ Depreciation/accounting, QR camera scanning, PDF export, multi-company, ML recom
 
 | Person | Tier 1 Ownership | Stretch |
 |--------|------------------|---------|
-| **P1** | Schema (locked after design), auth, org-setup, booking (EXCLUDE), employee vertical | Calendar view, custom fields |
+| **P1** | Schema (locked after design), auth, identity, organization, booking (EXCLUDE), employee vertical | Calendar view, custom fields |
 | **P2** | Department Head dashboard, dept-scoped approvals, booking reuse | Reports & Analytics |
 | **P3** | Assets, allocation (manager), maintenance Kanban, audit, notifications, search/QR | CSV export, file upload |
 

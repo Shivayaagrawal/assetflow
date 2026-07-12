@@ -14,7 +14,7 @@ Infrastructure patterns for AssetFlow — Docker, CI, auth, and notification des
 | ORM | Prisma |
 | Database | PostgreSQL 16 in Docker |
 | Auth | Better Auth |
-| Validation | Zod (`lib/env.ts` + feature schemas) |
+| Validation | Zod (`lib/env.ts` + module validators) |
 | Containerization | Docker Compose multi-stage build |
 | CI | GitHub Actions + Postgres service container |
 
@@ -23,15 +23,28 @@ Infrastructure patterns for AssetFlow — Docker, CI, auth, and notification des
 ## Layered Architecture
 
 ```
-app/ (routing)  →  features/ (business logic)  →  lib/ (infrastructure)  →  prisma/
+app/ (routing)  →  modules/ (domain)  →  shared/ (cross-cutting)  →  lib/ (infrastructure)
 ```
 
 | Layer | Owns |
 |-------|------|
 | `app/` | Pages, layouts, route handlers — no business logic |
-| `features/*` | `actions.ts`, `queries.ts`, `schemas.ts` per domain |
-| `lib/` | Prisma singleton, auth, session helpers, env, logger |
+| `modules/*` | `actions/`, `validators/`, `policies/`, `services/`, `repositories/` per domain |
+| `shared/` | Auth, errors, transactions, validation, types |
+| `lib/` | Prisma singleton, Better Auth, env, logger |
 | PostgreSQL | Constraints, indexes, transactions |
+
+### Request Flow (mutations)
+
+```
+Server Action → Validator → Policy → Application Service → Repository → PostgreSQL
+```
+
+- **One workflow = one service** (`AllocateAssetService`, not `AssetService`)
+- **Every module has one repository from day one** — small, focused, no generic base
+- Repositories never call other repositories; services orchestrate
+- Transaction boundaries open in services via `withTransaction()`
+- Modules depend on `shared/` only — never import from other modules
 
 ---
 
@@ -60,6 +73,23 @@ CREATE UNIQUE INDEX one_active_allocation_per_asset
 
 API catches `23505` → holder identity + transfer offer.
 
+### Active Maintenance (Partial Unique Index)
+
+```sql
+CREATE UNIQUE INDEX one_active_maintenance_per_asset
+  ON "MaintenanceRequest" ("assetId")
+  WHERE status NOT IN ('REJECTED', 'RESOLVED');
+```
+
+### Notification Deduplication
+
+```sql
+CREATE UNIQUE INDEX notification_dedup_key
+  ON "Notification" ("type", "relatedEntityId", "recipientId");
+```
+
+Full inventory: [backend/database/constraints.md](../backend/database/constraints.md).
+
 ### Auto-Install `btree_gist`
 
 `docker/init-extensions.sql` runs on first Postgres container start — no manual step required.
@@ -75,6 +105,8 @@ DATABASE_URL=...?connection_limit=10&pool_timeout=20
 ```
 
 For the single-container Docker deployment: `connection_limit=10` (not serverless `connection_limit=1`).
+
+Repositories accept an optional transaction client for use inside `withTransaction()`.
 
 ---
 
@@ -94,9 +126,25 @@ Frontend: SWR polling against notification queries.
 | Layer | File | Role |
 |-------|------|------|
 | 1 | `middleware.ts` | Cookie-existence redirect (optimistic) |
-| 2 | `lib/session.ts` | `requireSession()`, `requireRole()`, `requireDepartmentAccess()` |
+| 2 | `shared/auth/session.ts` | `requireSession()`, `assertRole()`, `assertDepartmentAccess()` |
 
-Every Server Action starts with Layer 2. Identity never comes from request body.
+Every Server Action starts with Layer 2. Authorization decisions live in policies — not inline role checks.
+
+---
+
+## Concurrency & Idempotency
+
+Every workflow documents: race condition, transaction, DB constraint, failure response.
+
+| Workflow | Race | Protection | Response |
+|----------|------|------------|----------|
+| Allocate | Two managers allocate simultaneously | Partial unique index | 409 ASSET_004 |
+| Booking | Overlapping slots | EXCLUDE constraint | 409 BOOKING_002 |
+| Transfer | Approve twice | `WHERE status = 'PENDING'` | 409 |
+| Return | Double click | Status validation | 409 ALLOC_003 |
+| Close audit | Close twice | Cycle status check | 409 AUDIT_003 |
+
+Idempotency rule: every mutation answers "if repeated, what happens?" — see [lld.md §10](./lld.md).
 
 ---
 
@@ -151,4 +199,7 @@ Validated at boot via `src/lib/env.ts`. See `.env.example`.
 
 - [hld.md](./hld.md) — high-level system design
 - [lld.md](./lld.md) — schema, sequences, API contracts
+- [errors.md](./errors.md) — canonical error catalogue
 - [execution-plan.md](./execution-plan.md) — build timeline
+- [../backend/database/constraints.md](../backend/database/constraints.md) — PostgreSQL guarantees
+- [../backend/engineering/state-transition-matrix.md](../backend/engineering/state-transition-matrix.md) — asset lifecycle

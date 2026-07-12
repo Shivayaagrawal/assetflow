@@ -40,12 +40,51 @@ test(audit): close cycle sets missing assets to lost
 
 - Signup always creates `EMPLOYEE`
 - Role promotion only via Admin → Employee Directory
-- `requireSession()` / `requireRole()` on every Server Action
+- `requireSession()` / `assertRole()` on every Server Action
 - Never trust client-supplied `userId`, `role`, or `departmentId`
+- Authorization lives in policies — not inline `if (user.role === ...)`
 
-## Feature Module Pattern
+## Module Pattern
 
-Each `features/<domain>/` folder contains:
-- `schemas.ts` — Zod validation
-- `queries.ts` — read-only Prisma
-- `actions.ts` — mutations + transactions
+Each `modules/<domain>/` folder contains:
+
+| Folder / File | Responsibility |
+|---------------|----------------|
+| `validators/*.schema.ts` | Zod validation |
+| `policies/*.policy.ts` | Authorization |
+| `services/*.service.ts` | One workflow per service |
+| `repositories/*.repository.ts` | All Prisma access |
+| `actions/*.action.ts` | Thin Server Actions |
+
+### Dependency Rule
+
+```
+app/ → modules/ → shared/ → lib/
+```
+
+Modules never import from other modules.
+
+## Error Handling
+
+Use typed errors from `shared/errors/` — never `throw new Error("...")`:
+
+```typescript
+throw new ConflictError("BOOKING_002");
+throw new AuthorizationError("AUTH_007");
+```
+
+Canonical catalogue: [docs/errors.md](docs/errors.md) · Implementation: `src/shared/errors/codes.ts`
+
+## Testing
+
+Write tests by **workflow**, not by module:
+
+```
+Allocate Asset
+  ├── Happy path
+  ├── Already allocated
+  ├── Inactive employee
+  ├── Retired asset
+  ├── Double click
+  └── Concurrent allocation
+```

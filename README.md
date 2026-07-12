@@ -34,11 +34,11 @@ Event-triggered notifications use a **transactional outbox** — `createNotifica
 flowchart LR
   subgraph Stack
     Next["Next.js 15 App Router"]
-    Features["features/* modules"]
+    Modules["modules/* + shared/"]
     Prisma["Prisma ORM"]
     PG["PostgreSQL 16"]
   end
-  Next --> Features --> Prisma --> PG
+  Next --> Modules --> Prisma --> PG
   PG -.->|EXCLUDE + partial index| PG
 ```
 
@@ -88,11 +88,15 @@ assetflow/
 │   ├── execution-plan.md   # Hackathon day-of plan
 │   ├── architecture.md     # Infrastructure patterns
 │   ├── business-invariants.md
-│   └── errors.md
+│   └── errors.md           # Canonical error catalogue
+├── backend/
+│   ├── database/constraints.md
+│   └── engineering/        # State transitions, edge cases, permissions
 ├── prisma/schema.prisma    # 17 models — P1-owned after lock
 ├── src/
 │   ├── app/                # Routing only
-│   ├── features/           # Domain modules (P1/P2/P3 ownership)
+│   ├── modules/            # Domain modules (identity, asset, booking, …)
+│   ├── shared/             # Auth, errors, transactions, validation
 │   ├── components/         # Shared UI
 │   └── lib/                # db, auth, session, env, logger
 ├── docker/                 # Dockerfile + init-extensions.sql
@@ -119,7 +123,7 @@ Signup creates **Employee** only. Roles are promoted exclusively via Admin → E
 
 | Person | Owns |
 |--------|------|
-| **P1** | Schema, auth, org-setup, booking (EXCLUDE), employee vertical |
+| **P1** | Schema, auth, identity, organization, booking (EXCLUDE), employee vertical |
 | **P2** | Department Head vertical, dept-scoped approvals |
 | **P3** | Assets, maintenance, audit, notifications, search/QR |
 
@@ -144,7 +148,9 @@ Commit format: `feat(booking): add overlap constraint migration`
 | [docs/execution-plan.md](docs/execution-plan.md) | Day-of timeline and validation gates |
 | [docs/architecture.md](docs/architecture.md) | Docker, CI, auth layers, notifications |
 | [docs/business-invariants.md](docs/business-invariants.md) | Domain rules |
-| [docs/errors.md](docs/errors.md) | Error catalogue |
+| [docs/errors.md](docs/errors.md) | Canonical API error catalogue |
+| [backend/database/constraints.md](backend/database/constraints.md) | PostgreSQL guarantees |
+| [backend/engineering/edge-cases.md](backend/engineering/edge-cases.md) | Prioritized edge cases |
 
 ---
 

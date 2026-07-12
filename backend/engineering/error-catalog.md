@@ -1,31 +1,16 @@
 # Error Catalogue
 
-Implemented in `src/shared/errors/codes.ts` and thrown via `AppError` subclasses.
+> **Canonical source:** [docs/errors.md](../../docs/errors.md)
+>
+> **Implementation:** `src/shared/errors/codes.ts` · thrown via `AppError` subclasses in `src/shared/errors/app-error.ts`
 
-| Code | Message | HTTP | Module |
-|------|---------|------|--------|
-| AUTH_001 | Invalid credentials | 401 | identity |
-| AUTH_002 | Session expired | 401 | identity |
-| AUTH_003 | Account is inactive | 403 | identity |
-| AUTH_006 | Email is already registered | 409 | identity |
-| AUTH_007 | Insufficient permissions | 403 | shared |
-| ASSET_001 | Asset not found | 404 | asset |
-| ASSET_002 | Serial number already exists | 409 | asset |
-| ASSET_004 | Asset is already allocated | 409 | allocation |
-| ASSET_005 | Asset is under maintenance | 409 | asset |
-| ASSET_006 | Asset is retired or disposed | 400 | asset |
-| ALLOC_001 | Allocation not found | 404 | allocation |
-| ALLOC_002 | Asset is not available for allocation | 409 | allocation |
-| ALLOC_003 | Allocation has already been returned | 409 | allocation |
-| BOOKING_002 | Booking overlap detected | 409 | booking |
-| BOOKING_003 | End time must be after start time | 400 | booking |
-| BOOKING_004 | Asset is not bookable | 400 | booking |
-| GEN_001 | Validation failed | 400 | shared |
-| GEN_003 | Internal server error | 500 | shared |
+Do not duplicate error codes here. Update `docs/errors.md` and `src/shared/errors/codes.ts` together.
 
 ## Usage
 
 ```typescript
+import { ConflictError, AuthorizationError } from "@/shared/errors/app-error";
+
 throw new ConflictError("BOOKING_002");
 throw new AuthorizationError("AUTH_007");
 ```
@@ -35,9 +20,13 @@ throw new AuthorizationError("AUTH_007");
 ```json
 {
   "success": false,
+  "data": null,
   "error": {
     "code": "BOOKING_002",
     "message": "Booking overlap detected"
-  }
+  },
+  "meta": null
 }
 ```
+
+HTTP status mapping lives in `ERROR_HTTP_STATUS` inside `src/shared/errors/codes.ts`.

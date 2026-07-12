@@ -54,58 +54,69 @@ Signup always creates an **Employee** account. Role elevation happens exclusivel
 
 ```mermaid
 flowchart TB
-  subgraph Presentation["Presentation Layer"]
+  subgraph Presentation["Presentation Layer — app/"]
     Pages["App Router Pages"]
     API["Route Handlers /api/*"]
     Actions["Server Actions"]
   end
 
-  subgraph Application["Application Layer — features/*"]
-    AuthF["auth"]
-    OrgF["org-setup"]
-    AssetsF["assets"]
-    AllocF["allocation"]
-    BookF["booking"]
-    MaintF["maintenance"]
-    AuditF["audit"]
-    NotifF["notifications"]
-    DashF["dashboard"]
-    ActivityF["activity-log"]
+  subgraph Modules["Application Layer — modules/*"]
+    Identity["identity"]
+    Org["organization"]
+    Asset["asset"]
+    Alloc["allocation"]
+    Book["booking"]
+    Maint["maintenance"]
+    Audit["audit"]
+    Notif["notification"]
+    Activity["activity"]
+    Report["reporting"]
   end
 
-  subgraph Infrastructure["Infrastructure — lib/*"]
-    Session["session.ts — requireSession / requireRole"]
+  subgraph Shared["Cross-Cutting — shared/"]
+    Auth["auth — session helpers"]
+    Errors["errors — AppError + codes"]
+    Tx["transactions — withTransaction"]
+    Validation["validation — runAction"]
+  end
+
+  subgraph Infra["Infrastructure — lib/"]
     DB["db.ts — Prisma singleton"]
     Env["env.ts — Zod-validated env"]
     Logger["logger.ts"]
+    AuthLib["auth.ts — Better Auth"]
   end
 
   subgraph Data["Data Layer"]
-  Prisma["Prisma ORM"]
-  PG["PostgreSQL 16"]
+    Repo["Repositories — Prisma access"]
+    PG["PostgreSQL 16"]
   end
 
   Pages --> Actions
   Pages --> API
-  Actions --> Application
-  API --> Application
-  Application --> Infrastructure
-  Prisma --> PG
+  Actions --> Modules
+  API --> Modules
+  Modules --> Shared
+  Modules --> Repo
+  Repo --> DB
+  DB --> PG
 
-  PG -.->|EXCLUDE constraint| BookF
-  PG -.->|Partial unique index| AllocF
+  PG -.->|EXCLUDE constraint| Book
+  PG -.->|Partial unique index| Alloc
 ```
 
 ### Dependency Rule
 
 ```
-app/ → features/ → lib/ → prisma/
+app/ → modules/ → shared/ → lib/ → repositories → prisma/
 ```
 
 - `app/` is routing only — no business logic
-- `features/*` owns domain workflows (`actions.ts`, `queries.ts`, `schemas.ts`)
-- `lib/` provides shared infrastructure (db, auth, session, env)
-- Prisma is never imported outside `lib/db.ts` and `features/*/queries.ts` / transactions in `actions.ts`
+- `modules/*` owns domain workflows (actions, validators, policies, services, repositories)
+- `shared/` provides cross-cutting concerns (auth, errors, transactions, validation)
+- `lib/` provides framework infrastructure (db singleton, Better Auth, env, logger)
+- **Repositories own all Prisma access** — services never call Prisma directly
+- Modules depend on `shared/` only — never import from other modules
 
 ---
 
@@ -159,16 +170,16 @@ Identity is always derived from the server session — never from request body f
 
 ```mermaid
 flowchart TB
-  Org["Organization<br/>Department · Category · Employee"]
-  Auth["Auth<br/>Better Auth · Sessions"]
-  Asset["Assets<br/>Registry · Search · QR"]
-  Alloc["Allocation<br/>Allocate · Return · Transfer"]
-  Book["Booking<br/>EXCLUDE constraint"]
-  Maint["Maintenance<br/>Kanban workflow"]
-  Audit["Audit<br/>Cycle · Verify · Close"]
-  Notif["Notifications<br/>Transactional outbox"]
-  Activity["Activity Log<br/>Append-only audit trail"]
-  Dash["Dashboard<br/>KPIs · RecentActivityFeed"]
+  Org["organization<br/>Department · Category · Employee"]
+  Identity["identity<br/>Better Auth · Sessions"]
+  Asset["asset<br/>Registry · Search · QR"]
+  Alloc["allocation<br/>Allocate · Return · Transfer"]
+  Book["booking<br/>EXCLUDE constraint"]
+  Maint["maintenance<br/>Kanban workflow"]
+  Audit["audit<br/>Cycle · Verify · Close"]
+  Notif["notification<br/>Transactional outbox"]
+  Activity["activity<br/>Append-only audit trail"]
+  Report["reporting<br/>KPIs · Dashboards"]
 
   Org --> Asset
   Org --> Alloc
@@ -184,10 +195,10 @@ flowchart TB
   Book --> Activity
   Maint --> Activity
   Audit --> Activity
-  Dash --> Asset
-  Dash --> Alloc
-  Dash --> Book
-  Dash --> Notif
+  Report --> Asset
+  Report --> Alloc
+  Report --> Book
+  Report --> Notif
 ```
 
 **17–18 Prisma models** map 1:1 to screens — see [lld.md §3](./lld.md#3-data-model).
@@ -237,7 +248,7 @@ flowchart TB
 | `/api/auth/[...all]` | Better Auth catch-all |
 | `/api/health` | DB connectivity check (503 if down) |
 | `/api/cron/overdue-check` | Time-based overdue return scan |
-| Server Actions in `features/*/actions.ts` | All mutations |
+| Server Actions in `modules/*/actions/` | All mutations |
 
 Response envelope (all custom APIs):
 
@@ -266,11 +277,11 @@ stateDiagram-v2
   [*] --> Available
   Available --> Allocated : allocate
   Available --> UnderMaintenance : maintenance approved
-  Available --> Booked : book (bookable assets)
+  Available --> Reserved : booking confirmed
   Allocated --> Available : return
   Allocated --> UnderMaintenance : maintenance approved
   UnderMaintenance --> Available : resolved
-  Booked --> Available : cancel / complete
+  Reserved --> Available : cancel / complete
   Available --> Lost : audit close (missing)
   Lost --> Retired : retire
   Available --> Retired : retire
@@ -287,11 +298,11 @@ Invalid transitions are rejected server-side. Terminal states (Retired, Disposed
 
 | Person | Owns |
 |--------|------|
-| **P1** | Schema (locked after design), auth, org-setup, booking (EXCLUDE), employee vertical |
+| **P1** | Schema (locked after design), auth, identity, organization, booking (EXCLUDE), employee vertical |
 | **P2** | Department Head vertical, dept-scoped approvals, reports (Tier 2) |
 | **P3** | Assets, allocation (manager), maintenance Kanban, audit, notifications, search/QR |
 
-Feature folders in `src/features/` map directly to this split to minimize merge conflicts.
+Module folders in `src/modules/` map directly to this split to minimize merge conflicts.
 
 ---
 
@@ -302,5 +313,8 @@ Feature folders in `src/features/` map directly to this split to minimize merge 
 | [lld.md](./lld.md) | Low-level design, schema, sequences, file contracts |
 | [execution-plan.md](./execution-plan.md) | Day-of hackathon timeline and gates |
 | [business-invariants.md](./business-invariants.md) | Non-negotiable domain rules |
-| [errors.md](./errors.md) | API error catalogue |
+| [errors.md](./errors.md) | Canonical API error catalogue |
 | [architecture.md](./architecture.md) | Infrastructure patterns (Docker, CI, auth layers) |
+| [../backend/database/constraints.md](../backend/database/constraints.md) | PostgreSQL constraint inventory |
+| [../backend/engineering/state-transition-matrix.md](../backend/engineering/state-transition-matrix.md) | Asset status transitions |
+| [../backend/engineering/edge-cases.md](../backend/engineering/edge-cases.md) | Prioritized edge-case inventory |

@@ -21,31 +21,38 @@ assetflow/
 │   ├── migrations/
 │   └── seed.ts
 ├── src/
-│   ├── app/                   # Routing only
+│   ├── app/                   # Routing only — no business logic
 │   │   ├── (auth)/login, signup
 │   │   ├── (dashboard)/       # Screens 2–10
 │   │   └── api/
 │   │       ├── auth/[...all]/route.ts
 │   │       ├── health/route.ts
 │   │       └── cron/overdue-check/route.ts
-│   ├── features/              # Business logic — one folder per domain
-│   │   ├── auth/
-│   │   ├── org-setup/
-│   │   ├── assets/
+│   ├── modules/               # Domain modules — one folder per bounded context
+│   │   ├── identity/
+│   │   ├── organization/
+│   │   ├── asset/
 │   │   ├── allocation/
 │   │   ├── booking/
 │   │   ├── maintenance/
 │   │   ├── audit/
-│   │   ├── notifications/
-│   │   ├── dashboard/
-│   │   └── activity-log/
+│   │   ├── notification/
+│   │   ├── activity/
+│   │   └── reporting/
+│   ├── shared/                # Cross-cutting — modules depend on shared only
+│   │   ├── auth/
+│   │   ├── database/
+│   │   ├── errors/
+│   │   ├── transactions/
+│   │   ├── validation/
+│   │   └── types/
 │   ├── components/            # Shared UI (DepartmentPicker, RecentActivityFeed, …)
-│   └── lib/
+│   └── lib/                   # Framework infrastructure
 │       ├── db.ts
 │       ├── env.ts
 │       ├── auth.ts
 │       ├── auth-client.ts
-│       ├── session.ts
+│       ├── session.ts         # Re-exports shared/auth/session
 │       └── logger.ts
 ├── tests/
 │   ├── unit/
@@ -53,26 +60,38 @@ assetflow/
 └── CONVENTIONS.md
 ```
 
-### Feature Module Contract
+### Module Contract
 
-Every `features/<domain>/` folder exposes:
+Every `modules/<domain>/` folder exposes:
 
-| File | Responsibility |
-|------|----------------|
-| `schemas.ts` | Zod input/output types |
-| `queries.ts` | Read-only Prisma queries |
-| `actions.ts` | Server Actions — mutations, transactions, auth checks |
+| File / Folder | Responsibility |
+|---------------|----------------|
+| `validators/*.schema.ts` | Zod input/output types |
+| `policies/*.policy.ts` | Authorization (`canAllocate`, `canManage`, …) |
+| `services/*.service.ts` | One workflow per service — transaction boundary |
+| `repositories/*.repository.ts` | All Prisma access for this module |
+| `actions/*.action.ts` | Thin Server Actions — parse, delegate, envelope |
 
 ```mermaid
 flowchart LR
-  Page["page.tsx"] --> Action["actions.ts"]
-  Action --> Schema["schemas.ts parse"]
+  Page["page.tsx"] --> Action["actions/*.action.ts"]
+  Action --> Validator["validators/*.schema.ts"]
   Action --> Session["requireSession()"]
-  Action --> Query["queries.ts"]
-  Action --> Tx["prisma.$transaction"]
+  Validator --> Policy["policies/*.policy.ts"]
+  Policy --> Service["services/*.service.ts"]
+  Service --> Repo["repositories/*.repository.ts"]
+  Service --> Tx["withTransaction()"]
   Tx --> Notif["createNotification(tx)"]
   Tx --> Log["logActivity(tx)"]
 ```
+
+### Dependency Rule
+
+```
+app/ → modules/ → shared/ → lib/
+```
+
+Modules never import from other modules. Cross-module orchestration happens inside services calling multiple repositories within one transaction.
 
 ---
 
@@ -170,6 +189,21 @@ CREATE UNIQUE INDEX one_active_allocation_per_asset
   ON "Allocation" ("assetId") WHERE status = 'ACTIVE';
 ```
 
+**Maintenance — one active request per asset** — partial unique index:
+
+```sql
+CREATE UNIQUE INDEX one_active_maintenance_per_asset
+  ON "MaintenanceRequest" ("assetId")
+  WHERE status NOT IN ('REJECTED', 'RESOLVED');
+```
+
+**Notification deduplication** — unique index:
+
+```sql
+CREATE UNIQUE INDEX notification_dedup_key
+  ON "Notification" ("type", "relatedEntityId", "recipientId");
+```
+
 **Additional CHECK constraints:**
 
 ```sql
@@ -208,7 +242,7 @@ Strategy: SELECT MAX + 1 inside transaction with advisory lock
 
 ## 4. API & Server Action Contracts
 
-### 4.1 Auth (`features/auth/`)
+### 4.1 Identity (`modules/identity/`)
 
 | Action | Auth | Rule |
 |--------|------|------|
@@ -217,7 +251,7 @@ Strategy: SELECT MAX + 1 inside transaction with advisory lock
 | `forgotPassword` | Public | 15-min token, hashed, one-time |
 | `promoteEmployee` | `ADMIN` only | Only path to change roles |
 
-### 4.2 Organization (`features/org-setup/`)
+### 4.2 Organization (`modules/organization/`)
 
 | Action | Auth | Rule |
 |--------|------|------|
@@ -227,7 +261,7 @@ Strategy: SELECT MAX + 1 inside transaction with advisory lock
 | `createCategory` | `ADMIN` | Optional JSON custom fields |
 | `promoteEmployee` | `ADMIN` | Employee → Dept Head / Asset Manager |
 
-### 4.3 Assets (`features/assets/`)
+### 4.3 Asset (`modules/asset/`)
 
 | Action | Auth | Rule |
 |--------|------|------|
@@ -235,7 +269,7 @@ Strategy: SELECT MAX + 1 inside transaction with advisory lock
 | `searchAssets` | Authenticated | ILIKE on tag, serial, name, location; ranked |
 | `updateAssetStatus` | `ASSET_MANAGER` | State machine validation |
 
-### 4.4 Allocation (`features/allocation/`)
+### 4.4 Allocation (`modules/allocation/`)
 
 | Action | Auth | Rule |
 |--------|------|------|
@@ -244,7 +278,7 @@ Strategy: SELECT MAX + 1 inside transaction with advisory lock
 | `requestTransfer` | `EMPLOYEE` | Creates TransferRequest |
 | `approveTransfer` | `DEPT_HEAD` / `ASSET_MANAGER` | Closes old allocation, opens new |
 
-### 4.5 Booking (`features/booking/`)
+### 4.5 Booking (`modules/booking/`)
 
 | Action | Auth | Rule |
 |--------|------|------|
@@ -252,7 +286,7 @@ Strategy: SELECT MAX + 1 inside transaction with advisory lock
 | `cancelBooking` | Owner / manager | Status → CANCELLED |
 | `rescheduleBooking` | Owner / manager | Cancel + rebook in transaction |
 
-### 4.6 Maintenance (`features/maintenance/`)
+### 4.6 Maintenance (`modules/maintenance/`)
 
 | Action | Auth | Rule |
 |--------|------|------|
@@ -261,7 +295,7 @@ Strategy: SELECT MAX + 1 inside transaction with advisory lock
 | `assignTechnician` | `ASSET_MANAGER` | Status → TECHNICIAN_ASSIGNED |
 | `resolveRequest` | `ASSET_MANAGER` | Asset → AVAILABLE |
 
-### 4.7 Audit (`features/audit/`)
+### 4.7 Audit (`modules/audit/`)
 
 | Action | Auth | Rule |
 |--------|------|------|
@@ -279,23 +313,28 @@ Strategy: SELECT MAX + 1 inside transaction with advisory lock
 sequenceDiagram
   actor AM as Asset Manager
   participant Action as allocation/actions
+  participant Service as AllocateAssetService
   participant DB as PostgreSQL
 
   AM->>Action: allocateAsset(assetId, employeeId)
-  Action->>Action: requireRole(ASSET_MANAGER)
-  Action->>DB: BEGIN TRANSACTION
-  Action->>DB: INSERT Allocation ACTIVE
+  Action->>Action: requireSession()
+  Action->>Service: execute(user, input)
+  Service->>Service: AllocationPolicy.assertCanAllocate()
+  Service->>DB: BEGIN TRANSACTION
+  Service->>DB: INSERT Allocation ACTIVE
 
   alt Asset already allocated
-    DB-->>Action: 23505 unique violation
-    Action->>DB: SELECT current holder
-    Action->>DB: ROLLBACK
+    DB-->>Service: 23505 unique violation
+    Service->>DB: SELECT current holder
+    Service->>DB: ROLLBACK
+    Service-->>Action: ConflictError ASSET_004
     Action-->>AM: 409 "Currently held by Priya Shah" + transfer offer
   else Success
-    Action->>DB: UPDATE Asset status ALLOCATED
-    Action->>DB: INSERT ActivityLog
-    Action->>DB: INSERT Notification ASSET_ASSIGNED
-    Action->>DB: COMMIT
+    Service->>DB: UPDATE Asset status ALLOCATED
+    Service->>DB: INSERT ActivityLog
+    Service->>DB: INSERT Notification ASSET_ASSIGNED
+    Service->>DB: COMMIT
+    Service-->>Action: success
     Action-->>AM: 201 success
   end
 ```
@@ -306,21 +345,25 @@ sequenceDiagram
 sequenceDiagram
   actor Emp as Employee
   participant Action as booking/actions
+  participant Service as CreateBookingService
   participant DB as PostgreSQL
 
   Emp->>Action: bookResource(assetId, 09:30, 10:30)
   Action->>Action: requireSession()
-  Action->>DB: BEGIN TRANSACTION
-  Action->>DB: INSERT Booking UPCOMING
+  Action->>Service: execute(user, input)
+  Service->>DB: BEGIN TRANSACTION
+  Service->>DB: INSERT Booking UPCOMING
 
   alt Overlaps 09:00-10:00 booking
-    DB-->>Action: 23P01 exclusion_violation
-    Action->>DB: ROLLBACK
+    DB-->>Service: 23P01 exclusion_violation
+    Service->>DB: ROLLBACK
+    Service-->>Action: ConflictError BOOKING_002
     Action-->>Emp: 409 "conflict — slot unavailable"
   else No overlap (e.g. 10:00-11:00)
-    Action->>DB: INSERT Notification BOOKING_CONFIRMED
-    Action->>DB: INSERT ActivityLog
-    Action->>DB: COMMIT
+    Service->>DB: INSERT Notification BOOKING_CONFIRMED
+    Service->>DB: INSERT ActivityLog
+    Service->>DB: COMMIT
+    Service-->>Action: success
     Action-->>Emp: 201 success
   end
 ```
@@ -415,25 +458,27 @@ flowchart TB
   Request["Incoming Request"] --> MW["middleware.ts<br/>cookie exists?"]
   MW -->|no cookie| Redirect["Redirect /login"]
   MW -->|cookie| Page["Page / Action"]
-  Page --> RS["requireSession()"]
-  RS -->|invalid| Err401["UNAUTHORIZED"]
-  RS -->|valid| RR["requireRole() / requireDepartmentAccess()"]
-  RR -->|denied| Err403["FORBIDDEN"]
-  RR -->|allowed| Handler["Business logic"]
+  Page --> RS["requireSession() — shared/auth/session"]
+  RS -->|invalid| Err401["AUTH_002 UNAUTHORIZED"]
+  RS -->|valid| Policy["Policy.canX() / assertRole()"]
+  Policy -->|denied| Err403["AUTH_007 FORBIDDEN"]
+  Policy -->|allowed| Service["Application Service"]
 ```
 
 ### Department scoping (P2)
 
 ```typescript
-export async function requireDepartmentAccess(departmentId: string) {
-  const session = await requireRole("DEPARTMENT_HEAD", "ASSET_MANAGER", "ADMIN");
+// organization/policies/department.policy.ts
+export function assertDepartmentAccess(
+  user: SessionUser,
+  departmentId: string
+) {
   if (
-    session.user.role === "DEPARTMENT_HEAD" &&
-    session.user.departmentId !== departmentId
+    user.role === "DEPARTMENT_HEAD" &&
+    user.departmentId !== departmentId
   ) {
-    throw new Error("FORBIDDEN");
+    throw new AuthorizationError("AUTH_007");
   }
-  return session;
 }
 ```
 
@@ -443,8 +488,8 @@ export async function requireDepartmentAccess(departmentId: string) {
 
 | Component | Used By | Data Source |
 |-----------|---------|-------------|
-| `DepartmentPicker` | Org Setup, Asset Registration, Allocation | Live `features/org-setup/queries` |
-| `RecentActivityFeed` | Dashboard (Screen 2), Notifications (Screen 10) | `ActivityLog` + `Notification` query |
+| `DepartmentPicker` | Org Setup, Asset Registration, Allocation | `organization/repositories` |
+| `RecentActivityFeed` | Dashboard (Screen 2), Notifications (Screen 10) | `activity` + `notification` queries |
 | `MaintenanceKanban` | Maintenance (Screen 7) | 5 columns, click-to-advance |
 | `AssetQRCode` | Asset detail | `react-qr-code` encoding `assetTag` |
 
@@ -463,7 +508,49 @@ Aligned with mockup scenarios for coherent demo walkthrough:
 
 ---
 
-## 10. Testing Contracts
+## 10. Concurrency Protection
+
+Every workflow documents: race condition, transaction, DB constraint, failure response.
+
+| Workflow | Race | Protection | Response |
+|----------|------|------------|----------|
+| Allocate | Two managers allocate simultaneously | Partial unique index `one_active_allocation_per_asset` | 409 `ASSET_004` |
+| Booking | Overlapping time slots | EXCLUDE constraint `no_overlapping_bookings` | 409 `BOOKING_002` |
+| Transfer | Approve twice | `UPDATE … WHERE status = 'REQUESTED'` | 409 |
+| Return | Double click | Status validation before update | 409 `ALLOC_003` |
+| Close audit | Close twice | Cycle status check | 409 `AUDIT_003` |
+| Maintenance | Duplicate active request | Partial unique index `one_active_maintenance_per_asset` | 409 `MAINT_002` |
+| Overdue notification | Cron runs twice | Unique index `notification_dedup_key` | Skip (idempotent) |
+
+---
+
+## 11. Idempotency
+
+Every mutation answers: **if this request is repeated, what happens?**
+
+| Action | Repeated response |
+|--------|-------------------|
+| Allocate | Already allocated → 409 `ASSET_004` |
+| Return | Already returned → 409 `ALLOC_003` |
+| Approve maintenance | Already approved → success or 409 |
+| Close audit | Already closed → 409 `AUDIT_003` |
+| Book resource | Overlap or duplicate → 409 `BOOKING_002` |
+
+---
+
+## 12. Testing Contracts
+
+Tests are organized by **workflow**, not by module:
+
+```
+Allocate Asset
+  ├── Happy path
+  ├── Already allocated
+  ├── Inactive employee
+  ├── Retired asset
+  ├── Double click
+  └── Concurrent allocation
+```
 
 | Owner | Integration Test |
 |-------|------------------|
@@ -473,7 +560,7 @@ Aligned with mockup scenarios for coherent demo walkthrough:
 
 ---
 
-## 11. Performance Budget
+## 13. Performance Budget
 
 | Metric | Target |
 |--------|--------|
@@ -484,7 +571,7 @@ Aligned with mockup scenarios for coherent demo walkthrough:
 
 ---
 
-## 12. Environment Variables
+## 14. Environment Variables
 
 Validated at boot via `lib/env.ts` (Zod). See `.env.example`.
 

@@ -10,14 +10,20 @@ flowchart TD
   App["app/ Route Handlers + Server Actions"]
   Modules["modules/ domain workflows"]
   Shared["shared/ cross-cutting"]
-  Prisma["Prisma"]
+  Lib["lib/ infrastructure"]
   PG["PostgreSQL"]
 
   Client --> App
   App --> Modules
   Modules --> Shared
-  Modules --> Prisma
-  Prisma --> PG
+  Modules --> Lib
+  Lib --> PG
+```
+
+### Request Flow (mutations)
+
+```
+Server Action → Validator → Policy → Application Service → Repository → PostgreSQL
 ```
 
 ## Module Map
@@ -37,7 +43,13 @@ flowchart TD
 
 ## Documentation Index
 
-- [architecture/01-hld.md](./architecture/01-hld.md) — high-level design
-- [database/constraints.md](./database/constraints.md) — PostgreSQL guarantees
-- [engineering/edge-cases.md](./engineering/edge-cases.md) — prioritized edge cases
-- [engineering/error-catalog.md](./engineering/error-catalog.md) — error codes
+| Document | Contents |
+|----------|----------|
+| [docs/hld.md](../docs/hld.md) | High-level system design |
+| [docs/lld.md](../docs/lld.md) | Schema, sequences, API contracts |
+| [docs/architecture.md](../docs/architecture.md) | Docker, CI, auth, notifications |
+| [docs/errors.md](../docs/errors.md) | Canonical error catalogue |
+| [database/constraints.md](./database/constraints.md) | PostgreSQL guarantees |
+| [engineering/state-transition-matrix.md](./engineering/state-transition-matrix.md) | Asset status transitions |
+| [engineering/edge-cases.md](./engineering/edge-cases.md) | Prioritized edge cases |
+| [engineering/permission-matrix.md](./engineering/permission-matrix.md) | RBAC matrix |
