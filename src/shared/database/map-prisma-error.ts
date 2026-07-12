@@ -2,6 +2,13 @@ import { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError } from "@/shared/errors/app-error";
 
 export function mapPrismaError(error: unknown): never {
+  if (
+    error instanceof Error &&
+    (error.message.includes("23P01") || error.message.includes("no_overlapping_bookings"))
+  ) {
+    throw new ConflictError("BOOKING_002");
+  }
+
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2002") {
       const target = String(error.meta?.target ?? "");
