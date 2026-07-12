@@ -53,6 +53,18 @@ Depreciation/accounting, QR camera scanning, PDF export, multi-company, ML recom
 
 ---
 
+## Environment Verification
+
+Every teammate runs this before starting module work:
+
+- [ ] Docker Desktop running
+- [ ] `docker compose up -d postgres` succeeds
+- [ ] `npx prisma migrate dev` succeeds
+- [ ] `npm run seed` succeeds
+- [ ] `GET /api/health` returns 200
+
+---
+
 ## Timeline
 
 | Time | Milestone |

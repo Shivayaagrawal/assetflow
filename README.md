@@ -59,6 +59,28 @@ flowchart LR
 
 ---
 
+## Requirements
+
+Verify tooling before setup:
+
+```bash
+node -v          # Node.js 22 LTS recommended
+npm -v           # npm 10+
+docker --version
+docker compose version
+```
+
+| Tool | Version |
+|------|---------|
+| Node.js | 22 LTS (20+ supported) |
+| npm | 10+ |
+| Docker Desktop | 4.x+ |
+| Docker Compose | v2+ |
+
+PostgreSQL is **not** installed on the host — it runs in Docker (local PostgreSQL 16 container).
+
+---
+
 ## Quick Start
 
 ```bash
