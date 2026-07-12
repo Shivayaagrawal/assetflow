@@ -1,7 +1,8 @@
 import {
+  bookResourceForDepartment,
   listBookableAssets,
   listUpcomingDepartmentBookings,
-} from "@/features/booking/queries";
+} from "@/modules/booking/actions/booking.actions";
 import { requireRole } from "@/lib/session";
 import { BookingClient } from "./BookingClient";
 

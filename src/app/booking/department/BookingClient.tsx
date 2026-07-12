@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { bookResourceForDepartment } from "@/features/booking/actions";
+import { bookResourceForDepartment } from "@/modules/booking/actions/booking.actions";
 
 type Asset = {
   id: string;
