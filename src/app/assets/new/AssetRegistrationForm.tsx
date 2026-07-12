@@ -63,6 +63,8 @@ export function AssetRegistrationForm({
   categories: CategoryOption[];
 }) {
   const [form, setForm] = useState<FormState>(initialFormState);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<
     | { kind: "success"; text: string }
@@ -96,6 +98,32 @@ export function AssetRegistrationForm({
     }
 
     startTransition(async () => {
+      let imageUrl: string | undefined;
+
+      if (imageFile) {
+        const body = new FormData();
+        body.append("file", imageFile);
+        const uploadResponse = await fetch("/api/uploads/asset-image", {
+          method: "POST",
+          body,
+        });
+        const uploadResult = (await uploadResponse.json()) as {
+          success: boolean;
+          data?: { url: string };
+          error?: { message: string };
+        };
+
+        if (!uploadResponse.ok || !uploadResult.success || !uploadResult.data?.url) {
+          setMessage({
+            kind: "error",
+            text: uploadResult.error?.message ?? "Image upload failed.",
+          });
+          return;
+        }
+
+        imageUrl = uploadResult.data.url;
+      }
+
       const result = await registerAsset({
         name: form.name,
         categoryId: form.categoryId,
@@ -104,11 +132,14 @@ export function AssetRegistrationForm({
         acquisitionCost: Number(form.acquisitionCost),
         location: form.location,
         isBookable: form.isBookable,
+        imageUrl,
       });
 
       if (result.success) {
         setForm(initialFormState);
         setFieldErrors({});
+        setImageFile(null);
+        setImagePreview(null);
         setMessage({
           kind: "success",
           text: `Asset registered successfully with tag ${result.data.assetTag}.`,
@@ -275,6 +306,37 @@ export function AssetRegistrationForm({
             ) : null}
           </label>
         </div>
+
+        <label className="span-full" style={{ gridColumn: "1 / -1" }}>
+          <span style={labelStyle}>Photo or document (optional)</span>
+          <input
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              setImageFile(file);
+              setImagePreview(
+                file && file.type.startsWith("image/")
+                  ? URL.createObjectURL(file)
+                  : null
+              );
+              setMessage(null);
+            }}
+            style={inputStyle}
+            type="file"
+          />
+          <span style={{ color: "#57606a", display: "block", fontSize: 13, marginTop: 6 }}>
+            JPEG, PNG, WebP, or PDF up to 5 MB. Stored locally for demo.
+          </span>
+          {imagePreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              alt="Selected asset preview"
+              className="asset-photo"
+              src={imagePreview}
+              style={{ display: "block", marginTop: 12 }}
+            />
+          ) : null}
+        </label>
 
         <label
           style={{

@@ -30,6 +30,7 @@ export class RegisterAssetService {
         acquisitionCost: input.acquisitionCost,
         location: input.location,
         isBookable: input.isBookable,
+        imageUrl: input.imageUrl,
         status: "AVAILABLE",
       });
 

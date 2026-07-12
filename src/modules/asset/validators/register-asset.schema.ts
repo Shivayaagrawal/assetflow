@@ -8,6 +8,12 @@ export const registerAssetSchema = z.object({
   acquisitionCost: z.coerce.number().min(0),
   location: z.string().min(1),
   isBookable: z.boolean().default(false),
+  imageUrl: z
+    .string()
+    .refine((value) => value.startsWith("/uploads/assets/"), {
+      message: "Image URL must be a server upload path",
+    })
+    .optional(),
 });
 
 export type RegisterAssetInput = z.infer<typeof registerAssetSchema>;
