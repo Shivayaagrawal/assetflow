@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getEmployeeDashboard } from "@/modules/reporting/queries/employee-dashboard.query";
 import { getDepartmentDashboard } from "@/modules/reporting/queries/dashboard.query";
 import { assertRole, requireSessionUser } from "@/shared/auth/session";
+import { prisma } from "@/lib/db";
 
 export default async function DashboardPage() {
   const user = await requireSessionUser();
@@ -77,7 +78,81 @@ export default async function DashboardPage() {
     );
   }
 
-  assertRole(user, "DEPARTMENT_HEAD", "ASSET_MANAGER", "ADMIN");
+  if (user.role === "ASSET_MANAGER" || user.role === "ADMIN") {
+    const [
+      totalAssets,
+      availableAssets,
+      allocatedAssets,
+      underMaintenance,
+      pendingTransfers,
+      pendingMaintenance,
+      pendingAudits,
+      recentActivities,
+    ] = await Promise.all([
+      prisma.asset.count(),
+      prisma.asset.count({ where: { status: "AVAILABLE" } }),
+      prisma.asset.count({ where: { status: "ALLOCATED" } }),
+      prisma.asset.count({ where: { status: "UNDER_MAINTENANCE" } }),
+      prisma.transferRequest.count({ where: { status: "REQUESTED" } }),
+      prisma.maintenanceRequest.count({ where: { status: "PENDING" } }),
+      prisma.auditCycle.count({ where: { status: "OPEN" } }),
+      prisma.activityLog.findMany({
+        take: 10,
+        orderBy: { createdAt: "desc" },
+        include: { actor: { select: { name: true } } },
+      }),
+    ]);
+
+    return (
+      <main className="app-shell">
+        <header className="page-header">
+          <div>
+            <p className="eyebrow">Operations workspace</p>
+            <h1 className="page-title">Operations Dashboard</h1>
+            <p className="page-subtitle">Global status of assets and compliance cycles.</p>
+          </div>
+          <nav className="nav-row">
+            <Link href="/assets">Assets</Link>
+            <Link href="/allocation">Allocations</Link>
+            <Link href="/maintenance">Maintenance</Link>
+            <Link href="/audit">Audits</Link>
+          </nav>
+        </header>
+
+        <section className="grid metrics" aria-label="Manager metrics" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+          <Metric label="Total Assets" value={totalAssets} />
+          <Metric label="Available Assets" value={availableAssets} />
+          <Metric label="Allocated Assets" value={allocatedAssets} />
+          <Metric label="Under Maintenance" value={underMaintenance} />
+          <Metric label="Pending Transfers" value={pendingTransfers} />
+          <Metric label="Pending Maintenance" value={pendingMaintenance} />
+          <Metric label="Pending Audits" value={pendingAudits} />
+        </section>
+
+        <section className="card" style={{ marginTop: 24 }}>
+          <h2 className="card-title">Recent Activity Log</h2>
+          <div className="list">
+            {recentActivities.map((log) => {
+              const newVal = log.newValue as Record<string, unknown> | null;
+              const title = newVal && typeof newVal === "object" && "description" in newVal
+                ? String(newVal.description)
+                : `${log.action.replace(/_/g, " ")} (${log.entityType})`;
+              return (
+                <ListItem
+                  key={log.id}
+                  title={title}
+                  meta={`Performed by ${log.actor?.name ?? "System"} on ${log.createdAt.toLocaleString()}`}
+                />
+              );
+            })}
+            {recentActivities.length === 0 && <Empty />}
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  assertRole(user, "DEPARTMENT_HEAD");
 
   if (!user.departmentId && user.role === "DEPARTMENT_HEAD") {
     return (
