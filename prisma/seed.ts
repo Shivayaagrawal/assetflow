@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/db";
 const SEED_PASSWORD = process.env.SEED_PASSWORD ?? "Password123!";
 
 async function hashPassword(password: string): Promise<string> {
@@ -124,6 +122,7 @@ async function main() {
       assetTag: "AF-0114",
       serialNumber: "SN-0114",
       categoryId: electronics.id,
+      departmentId: engineering.id,
       acquisitionDate: new Date("2024-03-12"),
       acquisitionCost: 85000,
       location: "bengaluru",
@@ -194,6 +193,38 @@ async function main() {
     },
   });
 
+  const auditCycle = await prisma.auditCycle.create({
+    data: {
+      name: "Engineering Q3 Audit",
+      status: "OPEN",
+      scopeDepartmentId: engineering.id,
+      startDate: new Date("2026-07-01"),
+      endDate: new Date("2026-07-31"),
+      createdById: assetManager.id,
+      auditors: {
+        create: [{ auditorId: deptHead.id }, { auditorId: assetManager.id }],
+      },
+    },
+  });
+
+  const engineeringAssets = await prisma.asset.findMany({
+    where: { departmentId: engineering.id },
+    select: { id: true, location: true },
+  });
+
+  for (const asset of engineeringAssets) {
+    await prisma.auditItem.create({
+      data: {
+        auditCycleId: auditCycle.id,
+        assetId: asset.id,
+        expectedLocation: asset.location,
+        verificationStatus: asset.id === laptop.id ? "VERIFIED" : "PENDING",
+        verifiedById: asset.id === laptop.id ? deptHead.id : undefined,
+        verifiedAt: asset.id === laptop.id ? new Date() : undefined,
+      },
+    });
+  }
+
   // Align sequence above seeded numeric tags so nextval() cannot collide
   await prisma.$executeRaw`
     SELECT setval('asset_tag_seq', GREATEST(
@@ -214,6 +245,7 @@ async function main() {
   console.log("  priya@assetflow.demo — EMPLOYEE (AF-0114 allocated)");
   console.log("  Room B2 booked 09:00-10:00 for overlap tests");
   console.log(`  Active allocation id: ${allocation.id}`);
+  console.log(`  Open audit cycle: ${auditCycle.name} (${auditCycle.id})`);
 }
 
 main()
