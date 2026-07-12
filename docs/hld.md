@@ -120,9 +120,92 @@ app/ → modules/ → shared/ → lib/ → repositories → prisma/
 
 ---
 
-## 4. Core Design Decisions
+## 4. Dynamic Data Strategy
 
-### 4.1 Database-Enforced Correctness
+AssetFlow does **not** use static JSON as an application data source. All business data is retrieved from PostgreSQL through repositories and APIs.
+
+```text
+User → Server Action / Route Handler → Service → Repository → PostgreSQL → Response
+```
+
+**Dynamic data** (always live from the database):
+
+- Departments, employees, asset categories
+- Assets and current asset status
+- Allocations, bookings, maintenance requests
+- Audit cycles and verification results
+- Notifications and activity log entries
+- Dashboard KPIs and reports
+
+**Static JSON is permitted only for:**
+
+- `prisma/seed.ts` — initial database population
+- Unit and integration test fixtures
+- Early prototyping (must be removed before demo)
+
+**Seed data exists only to populate the database. The application never reads from static files after startup.**
+
+No production screen depends on hardcoded lists. Dropdowns query repositories (`DepartmentRepository.findAllActive()`, etc.). Admin creates categories and departments — exactly like Odoo master data.
+
+### Dashboard and Reports
+
+Dashboard KPIs are computed **per request** via SQL — never cached JSON:
+
+```sql
+SELECT COUNT(*) FROM "Asset" WHERE status = 'AVAILABLE';
+SELECT COUNT(*) FROM "Asset" WHERE status = 'ALLOCATED';
+SELECT COUNT(*) FROM "MaintenanceRequest" WHERE status = 'PENDING';
+```
+
+Reports use live aggregation:
+
+```sql
+SELECT department_id, COUNT(*) FROM "Asset" GROUP BY department_id;
+SELECT category_id, SUM(acquisition_cost) FROM "Asset" GROUP BY category_id;
+```
+
+Booking calendar, search (ILIKE + indexes), and notification feeds all query their respective tables on each request.
+
+---
+
+## 5. Architecture Principles
+
+```mermaid
+flowchart TD
+  PG["PostgreSQL — Single Source of Truth"]
+  Repos["Repositories — Persistence"]
+  Services["Application Services — Business Rules"]
+  Policies["Policies — Authorization"]
+  Zod["Zod + PostgreSQL — Validation"]
+  StateMachine["AssetStateMachine — State Changes"]
+  Tx["withTransaction — Atomicity"]
+  Notif["createNotification — Side Effects"]
+
+  PG --> Repos
+  Repos --> Services
+  Policies --> Services
+  Zod --> Services
+  StateMachine --> Services
+  Services --> Tx
+  Tx --> Notif
+```
+
+| Concern | Owner |
+|---------|-------|
+| Single source of truth | PostgreSQL |
+| Business rules | Application services |
+| Authorization | Policies (`assertCanAllocate`, `assertCanManage`, …) |
+| Input validation | Zod validators + PostgreSQL constraints |
+| State transitions | `AssetStateMachine` |
+| Persistence | Repositories (all Prisma access) |
+| Atomicity | `withTransaction()` in services only |
+| Side effects | `createNotification(tx)` + `logActivity(tx)` inside transactions |
+
+---
+
+## 6. Core Design Decisions
+
+### 6.1 Database-Enforced Correctness
 
 Two Tier 1 guarantees are enforced **in PostgreSQL**, not only in application code:
 
@@ -146,7 +229,7 @@ flowchart LR
   end
 ```
 
-### 4.2 Transactional Notifications
+### 6.2 Transactional Notifications
 
 Event-triggered notifications (`Asset Assigned`, `Booking Confirmed`, `Maintenance Approved`, etc.) are written **inside the same Prisma transaction** as the triggering mutation via `createNotification(tx, ...)`.
 
@@ -154,7 +237,7 @@ This guarantees: mutation and notification either both commit or both roll back 
 
 Time-based alerts (`Overdue Return`) use a **cron-guarded scan route** (`GET /api/cron/overdue-check`) with idempotent deduplication.
 
-### 4.3 Auth — Defense in Depth
+### 6.3 Auth — Defense in Depth
 
 | Layer | Responsibility |
 |-------|----------------|
@@ -166,7 +249,7 @@ Identity is always derived from the server session — never from request body f
 
 ---
 
-## 5. Module Map
+## 7. Module Map
 
 ```mermaid
 flowchart TB
@@ -205,7 +288,7 @@ flowchart TB
 
 ---
 
-## 6. Tech Stack
+## 8. Tech Stack
 
 | Layer | Choice |
 |-------|--------|
@@ -221,7 +304,7 @@ flowchart TB
 
 ---
 
-## 7. Deployment Topology
+## 9. Deployment Topology
 
 ```mermaid
 flowchart TB
@@ -241,7 +324,7 @@ flowchart TB
 
 ---
 
-## 8. API Surface
+## 10. API Surface
 
 | Prefix | Purpose |
 |--------|---------|
@@ -258,7 +341,7 @@ Response envelope (all custom APIs):
 
 ---
 
-## 9. Transaction Boundaries (Atomic Operations)
+## 11. Transaction Boundaries (Atomic Operations)
 
 | Workflow | Steps in one transaction |
 |----------|--------------------------|
@@ -270,7 +353,7 @@ Response envelope (all custom APIs):
 
 ---
 
-## 10. Asset Status Lifecycle
+## 12. Asset Status Lifecycle
 
 ```mermaid
 stateDiagram-v2
@@ -290,11 +373,11 @@ stateDiagram-v2
   Disposed --> [*]
 ```
 
-Invalid transitions are rejected server-side. Terminal states (Retired, Disposed) have no outbound transitions.
+Invalid transitions are rejected server-side via `AssetStateMachine`. Terminal states (Retired, Disposed) have no outbound transitions.
 
 ---
 
-## 11. Team Ownership (Build Phase)
+## 13. Team Ownership (Build Phase)
 
 | Person | Owns |
 |--------|------|
@@ -306,7 +389,7 @@ Module folders in `src/modules/` map directly to this split to minimize merge co
 
 ---
 
-## 12. Related Documents
+## 14. Related Documents
 
 | Document | Contents |
 |----------|----------|

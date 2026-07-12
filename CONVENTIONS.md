@@ -64,6 +64,10 @@ app/ → modules/ → shared/ → lib/
 
 Modules never import from other modules.
 
+## Dynamic Data
+
+No hardcoded business data in UI — all pickers, dashboards, and reports query repositories backed by PostgreSQL. Static JSON is permitted only in `prisma/seed.ts` and test fixtures.
+
 ## Error Handling
 
 Use typed errors from `shared/errors/` — never `throw new Error("...")`:

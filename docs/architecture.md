@@ -44,6 +44,7 @@ Server Action → Validator → Policy → Application Service → Repository �
 - **Every module has one repository from day one** — small, focused, no generic base
 - Repositories never call other repositories; services orchestrate
 - Transaction boundaries open in services via `withTransaction()`
+- **Repositories never start transactions** — only services call `withTransaction()`
 - Modules depend on `shared/` only — never import from other modules
 
 ---

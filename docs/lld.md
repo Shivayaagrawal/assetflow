@@ -234,9 +234,28 @@ See [business-invariants.md](./business-invariants.md) for rules each model must
 
 ```
 Format: AF-000001 (sequential, not UUID)
-Strategy: SELECT MAX + 1 inside transaction with advisory lock
-         OR dedicated AssetTagSequence table with row lock
+Strategy: PostgreSQL sequence — nextval('asset_tag_seq') inside transaction
 ```
+
+```sql
+CREATE SEQUENCE asset_tag_seq START 1;
+-- SELECT nextval('asset_tag_seq') → format as AF-000001 in AssetRepository
+```
+
+Never use `SELECT MAX(asset_tag)` or `count() + 1` — both are race-prone under concurrency.
+
+### Live Query Contracts (Dashboard / Reporting)
+
+All KPIs and reports are computed per request from PostgreSQL:
+
+| KPI | SQL pattern |
+|-----|-------------|
+| Assets Available | `COUNT(*) WHERE status = 'AVAILABLE'` |
+| Assets Allocated | `COUNT(*) WHERE status = 'ALLOCATED'` |
+| Pending Maintenance | `COUNT(*) WHERE status = 'PENDING'` |
+| Overdue Returns | `COUNT(*) FROM Allocation WHERE status = 'ACTIVE' AND expectedReturnDate < NOW()` |
+
+Reports use `GROUP BY department_id`, `GROUP BY category_id` with `COUNT`, `SUM`, `AVG` — no cached JSON.
 
 ---
 
@@ -267,7 +286,7 @@ Strategy: SELECT MAX + 1 inside transaction with advisory lock
 |--------|------|------|
 | `registerAsset` | `ASSET_MANAGER` | Auto-generates tag, enforces unique serial |
 | `searchAssets` | Authenticated | ILIKE on tag, serial, name, location; ranked |
-| `updateAssetStatus` | `ASSET_MANAGER` | State machine validation |
+| `updateAssetStatus` | `ASSET_MANAGER` | `AssetStateMachine` validation |
 
 ### 4.4 Allocation (`modules/allocation/`)
 
@@ -374,15 +393,22 @@ sequenceDiagram
 sequenceDiagram
   actor AM as Asset Manager
   participant Action as maintenance/actions
+  participant Service as ApproveMaintenanceService
+  participant Repo as MaintenanceRepository
   participant DB as PostgreSQL
 
   AM->>Action: approveRequest(requestId)
-  Action->>DB: BEGIN TRANSACTION
-  Action->>DB: UPDATE MaintenanceRequest APPROVED
-  Action->>DB: UPDATE Asset UNDER_MAINTENANCE
-  Action->>DB: INSERT ActivityLog
-  Action->>DB: INSERT Notification MAINTENANCE_APPROVED
-  Action->>DB: COMMIT
+  Action->>Action: requireSession()
+  Action->>Service: execute(user, input)
+  Service->>Service: MaintenancePolicy.assertCanApprove()
+  Service->>Service: AssetStateMachine.assertTransition(AVAILABLE, UNDER_MAINTENANCE)
+  Service->>DB: BEGIN TRANSACTION
+  Service->>Repo: updateStatus(requestId, APPROVED)
+  Service->>Repo: updateAssetStatus(assetId, UNDER_MAINTENANCE)
+  Service->>DB: INSERT ActivityLog
+  Service->>DB: INSERT Notification MAINTENANCE_APPROVED
+  Service->>DB: COMMIT
+  Service-->>Action: success
   Action-->>AM: 200 success
 ```
 
@@ -392,17 +418,23 @@ sequenceDiagram
 sequenceDiagram
   actor AM as Asset Manager
   participant Action as audit/actions
+  participant Service as CloseAuditService
+  participant Repo as AuditRepository
   participant DB as PostgreSQL
 
   AM->>Action: closeCycle(cycleId)
-  Action->>DB: BEGIN TRANSACTION
-  Action->>DB: SELECT AuditCycle FOR UPDATE
-  Action->>DB: UPDATE AuditCycle CLOSED
-  Action->>DB: UPDATE Asset LOST WHERE AuditItem MISSING
-  Action->>DB: Generate discrepancy report rows
-  Action->>DB: INSERT Notifications AUDIT_DISCREPANCY_FLAGGED
-  Action->>DB: INSERT ActivityLog
-  Action->>DB: COMMIT
+  Action->>Action: requireSession()
+  Action->>Service: execute(user, input)
+  Service->>Service: AuditPolicy.assertCanClose()
+  Service->>DB: BEGIN TRANSACTION
+  Service->>Repo: lockCycleForUpdate(cycleId)
+  Service->>Repo: closeCycle(cycleId)
+  Service->>Repo: markMissingAssetsLost(cycleId)
+  Service->>Repo: generateDiscrepancyReport(cycleId)
+  Service->>DB: INSERT Notifications AUDIT_DISCREPANCY_FLAGGED
+  Service->>DB: INSERT ActivityLog
+  Service->>DB: COMMIT
+  Service-->>Action: success
   Action-->>AM: 200 report + updated statuses
 ```
 

@@ -27,3 +27,5 @@ stateDiagram-v2
 | DISPOSED | Any | No |
 
 Terminal states (`RETIRED`, `DISPOSED`) are immutable.
+
+**Code:** enforced by `AssetStateMachine` in `src/modules/asset/domain/asset-state-machine.ts`. Services call `AssetStateMachine.assertTransition(from, to)` before `updateStatus`.

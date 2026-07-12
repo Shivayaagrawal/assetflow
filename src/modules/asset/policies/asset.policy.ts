@@ -1,4 +1,5 @@
 import type { Asset, AssetStatus } from "@prisma/client";
+import { AssetStateMachine } from "@/modules/asset/domain/asset-state-machine";
 import type { SessionUser } from "@/shared/types/action-result";
 import {
   AuthorizationError,
@@ -45,9 +46,7 @@ export const AssetPolicy = {
     if (asset.status === "UNDER_MAINTENANCE") {
       throw new ConflictError("ASSET_005");
     }
-    if (!ALLOCATABLE.includes(asset.status)) {
-      throw new ConflictError("ALLOC_002");
-    }
+    AssetStateMachine.assertTransition(asset.status, "ALLOCATED");
   },
 
   assertCanBook(user: SessionUser, asset: Asset) {

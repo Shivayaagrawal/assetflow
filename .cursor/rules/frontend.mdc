@@ -11,6 +11,7 @@ alwaysApply: false
 - Hardcode data that belongs in API/state
 - Duplicate components (extract shared UI)
 - Duplicate forms (create a reusable form component or hook)
+- Use static JSON as an application data source (seed JSON is for `prisma/seed.ts` and tests only)
 
 ## Always
 

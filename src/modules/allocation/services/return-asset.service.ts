@@ -1,5 +1,6 @@
 import { AllocationPolicy } from "@/modules/allocation/policies/allocation.policy";
 import { AllocationRepository } from "@/modules/allocation/repositories/allocation.repository";
+import { AssetStateMachine } from "@/modules/asset/domain/asset-state-machine";
 import { AssetRepository } from "@/modules/asset/repositories/asset.repository";
 import type { ReturnAssetInput } from "@/modules/allocation/validators/allocation.schema";
 import { logActivity } from "@/modules/activity/services/log-activity.service";
@@ -25,6 +26,11 @@ export class ReturnAssetService {
     if (allocation.status === "RETURNED") {
       throw new ConflictError("ALLOC_003");
     }
+
+    const asset = await this.assets.findById(allocation.assetId);
+    if (!asset) throw new NotFoundError("ASSET_001");
+
+    AssetStateMachine.assertTransition(asset.status, "AVAILABLE");
 
     return withTransaction(async (tx) => {
       const allocRepo = new AllocationRepository(tx);

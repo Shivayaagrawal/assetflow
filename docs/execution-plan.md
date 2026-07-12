@@ -108,12 +108,32 @@ Merge every 45–60 minutes. Pull-resolve-push. Never force-push. Conventional c
 
 ## Seed Data (Mockup Cast)
 
+Seed data exists only to populate the database. **The application never reads from static files after startup.**
+
 - **Departments:** Engineering (Aditi Rao), Field Ops East (Sana Iqbal, Inactive), Facilities (Rohan Mehta)
 - **Assets:** AF-0114 Dell Laptop → Priya Shah; AF-0062 Projector (mid-maintenance); Conference Room B2 (bookable)
 - **Booking:** Room B2 09:00–10:00 Procurement Team
 - **People:** Priya Shah, Arjun Nair (past return, condition: good)
 - **Audit:** Engineering cycle, auditors Aditi Rao + Sana Iqbal, mixed results
 - **15–20 assets** across all 7 lifecycle states
+
+---
+
+## Dynamic Data Checklist
+
+Before demo, verify Odoo's "dynamic data" requirement:
+
+- [ ] No UI reads from static JSON
+- [ ] All dropdowns query PostgreSQL (departments, employees, categories)
+- [ ] Dashboard KPIs computed live (`COUNT`, `SUM`, `GROUP BY`)
+- [ ] Reports generated from SQL aggregations
+- [ ] Notifications come from Notification table (SWR polling)
+- [ ] Search queries PostgreSQL (ILIKE + indexes)
+- [ ] Booking calendar queries Booking table
+- [ ] Department picker queries Department table
+- [ ] Employee picker queries User table
+- [ ] Asset category picker queries AssetCategory table
+- [ ] Activity feed queries ActivityLog table
 
 ---
 

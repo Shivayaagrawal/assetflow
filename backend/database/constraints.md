@@ -29,6 +29,7 @@ flowchart TD
 | Return after allocate | CHECK | business_constraints |
 | One active maintenance | Partial UNIQUE INDEX | business_constraints |
 | Notification dedup | UNIQUE INDEX | business_constraints |
+| Asset tag sequence | SEQUENCE | asset_tag_sequence |
 | btree_gist extension | EXTENSION | business_constraints |
 
 ## Verify Locally

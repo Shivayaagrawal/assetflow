@@ -1,4 +1,5 @@
 import { AssetPolicy } from "@/modules/asset/policies/asset.policy";
+import { AssetStateMachine } from "@/modules/asset/domain/asset-state-machine";
 import { AssetRepository } from "@/modules/asset/repositories/asset.repository";
 import { AllocationPolicy } from "@/modules/allocation/policies/allocation.policy";
 import { AllocationRepository } from "@/modules/allocation/repositories/allocation.repository";
@@ -34,6 +35,8 @@ export class AllocateAssetService {
     return withTransaction(async (tx) => {
       const allocRepo = new AllocationRepository(tx);
       const assetRepo = new AssetRepository(tx);
+
+      AssetStateMachine.assertTransition(asset.status, "ALLOCATED");
 
       const allocation = await allocRepo.create({
         asset: { connect: { id: asset.id } },

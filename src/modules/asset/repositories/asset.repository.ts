@@ -3,6 +3,10 @@ import { prisma } from "@/shared/database";
 
 type Tx = Prisma.TransactionClient | typeof prisma;
 
+export function formatAssetTag(sequenceValue: number | bigint): string {
+  return `AF-${String(sequenceValue).padStart(6, "0")}`;
+}
+
 export class AssetRepository {
   constructor(private readonly db: Tx = prisma) {}
 
@@ -22,13 +26,11 @@ export class AssetRepository {
     return this.db.asset.update({ where: { id }, data: { status } });
   }
 
-  count() {
-    return this.db.asset.count();
-  }
-
   async nextAssetTag(): Promise<string> {
-    const count = await this.count();
-    return `AF-${String(count + 1).padStart(4, "0")}`;
+    const rows = await this.db.$queryRaw<[{ nextval: bigint }]>`
+      SELECT nextval('asset_tag_seq') AS nextval
+    `;
+    return formatAssetTag(rows[0].nextval);
   }
 }
 

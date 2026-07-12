@@ -17,10 +17,10 @@ export class RegisterAssetService {
       throw new ConflictError("ASSET_002");
     }
 
-    const assetTag = await this.assets.nextAssetTag();
-
     return withTransaction(async (tx) => {
       const repo = new AssetRepository(tx);
+      const assetTag = await repo.nextAssetTag();
+
       const asset = await repo.create({
         name: input.name,
         assetTag,
