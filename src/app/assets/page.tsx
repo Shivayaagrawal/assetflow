@@ -23,6 +23,8 @@ export default async function AssetDirectoryPage({
     status: firstParam(params.status),
     categoryId: firstParam(params.categoryId),
     location: firstParam(params.location),
+    sortBy: firstParam(params.sortBy),
+    sortDirection: firstParam(params.sortDirection),
   });
 
   const [assets, filterOptions] = await Promise.all([
@@ -90,6 +92,22 @@ export default async function AssetDirectoryPage({
                 {location}
               </option>
             ))}
+          </select>
+        </label>
+
+        <label>
+          Sort by
+          <select defaultValue={filters.sortBy} name="sortBy">
+            <option value="assetTag">Asset Tag</option>
+            <option value="name">Asset Name</option>
+          </select>
+        </label>
+
+        <label>
+          Direction
+          <select defaultValue={filters.sortDirection} name="sortDirection">
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
           </select>
         </label>
 

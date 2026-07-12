@@ -26,6 +26,10 @@ export async function listAssets(filters: AssetDirectoryFilters = {}) {
   await requireSession();
   const parsed = assetDirectoryFilterSchema.parse(filters);
   const search = parsed.search;
+  const orderBy =
+    parsed.sortBy === "name"
+      ? { name: parsed.sortDirection }
+      : { assetTag: parsed.sortDirection };
 
   return prisma.asset.findMany({
     where: {
@@ -40,9 +44,7 @@ export async function listAssets(filters: AssetDirectoryFilters = {}) {
           ]
         : undefined,
     },
-    orderBy: {
-      assetTag: "asc",
-    },
+    orderBy,
     select: {
       id: true,
       assetTag: true,
