@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getReportsOverview } from "@/modules/reporting/queries/dashboard.query";
-import { requireSessionUser } from "@/shared/auth/session";
+import { requireSessionUserStrict } from "@/shared/auth/session";
 import { toActionError } from "@/shared/errors/app-error";
 
 function csvCell(value: string | number | null | undefined) {
@@ -11,7 +11,7 @@ function csvCell(value: string | number | null | undefined) {
 
 export async function GET() {
   try {
-    await requireSessionUser();
+    await requireSessionUserStrict();
     const reports = await getReportsOverview();
     const rows = [
       ["Section", "Label", "Value", "Location"],

@@ -340,6 +340,14 @@ npm run dev
 
 Hard-refresh the browser (`Cmd+Shift+R`). Use **http://localhost:3000** (not an old port).
 
+### Session expired (`AUTH_002`)
+
+Happens after dev server restarts, `BETTER_AUTH_SECRET` changes, or using a different port than `.env` (`BETTER_AUTH_URL` must match the URL in your browser).
+
+1. Go to http://localhost:3000/login
+2. Sign in again with your demo account (`Password123!`)
+3. Confirm `.env` has `BETTER_AUTH_URL="http://localhost:3000"` if you use port 3000
+
 ### Seed data missing
 
 ```bash

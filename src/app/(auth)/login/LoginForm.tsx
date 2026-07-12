@@ -9,9 +9,10 @@ import type { OAuthProvider } from "@/lib/oauth-providers";
 
 type LoginFormProps = {
   oauthProviders: OAuthProvider[];
+  notice?: string | null;
 };
 
-export function LoginForm({ oauthProviders }: LoginFormProps) {
+export function LoginForm({ oauthProviders, notice }: LoginFormProps) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -43,6 +44,12 @@ export function LoginForm({ oauthProviders }: LoginFormProps) {
       <p className="eyebrow">AssetFlow</p>
       <h1 className="page-title">Sign in</h1>
       <p className="page-subtitle">Use your organization account to continue.</p>
+
+      {notice ? (
+        <div className="notice error" role="status" style={{ marginBottom: 16 }}>
+          {notice}
+        </div>
+      ) : null}
 
       <form className="form-grid" onSubmit={onSubmit}>
         <SocialSignInButtons providers={oauthProviders} />

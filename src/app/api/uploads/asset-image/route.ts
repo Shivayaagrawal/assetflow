@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { AssetPolicy } from "@/modules/asset/policies/asset.policy";
-import { requireSessionUser } from "@/shared/auth/session";
+import { requireSessionUserStrict } from "@/shared/auth/session";
 import { toActionError, ValidationError } from "@/shared/errors/app-error";
 import { saveAssetUpload } from "@/shared/uploads/save-asset-file";
 
 export async function POST(request: Request) {
   try {
-    const user = await requireSessionUser();
+    const user = await requireSessionUserStrict();
     AssetPolicy.assertCanRegister(user);
 
     const form = await request.formData();

@@ -4,6 +4,7 @@ import {
   assertRole,
   requireSession,
   requireSessionUser,
+  requireSessionUserStrict,
   toSessionUser,
 } from "@/shared/auth/session";
 import { AuthorizationError } from "@/shared/errors/app-error";
@@ -13,6 +14,7 @@ export {
   assertRole,
   requireSession,
   requireSessionUser,
+  requireSessionUserStrict,
   toSessionUser,
 };
 
