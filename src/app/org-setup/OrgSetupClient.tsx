@@ -6,6 +6,7 @@ import {
   createAssetCategory,
   createDepartment,
   updateEmployeeRole,
+  deactivateDepartment,
 } from "@/features/org-setup/actions";
 
 type Department = {
@@ -159,15 +160,56 @@ export function OrgSetupClient({
       <section className="grid">
         <section className="card">
           <h2 className="card-title">Departments</h2>
-          <Table
-            headers={["Name", "Status", "Head", "Members"]}
-            rows={departments.map((d) => [
-              d.name,
-              d.status,
-              d.head?.name ?? "Unassigned",
-              String(d._count.members),
-            ])}
-          />
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Head</th>
+                  <th>Members</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {departments.map((d) => (
+                  <tr key={d.id}>
+                    <td>{d.name}</td>
+                    <td>
+                      <span className="status-pill">{d.status}</span>
+                    </td>
+                    <td>{d.head?.name ?? "Unassigned"}</td>
+                    <td>{d._count.members}</td>
+                    <td>
+                      {d.status === "ACTIVE" ? (
+                        <button
+                          disabled={isPending}
+                          className="danger secondary"
+                          style={{ minHeight: 28, padding: "0 8px", fontSize: 12 }}
+                          onClick={() =>
+                            runAction(
+                              () => deactivateDepartment(d.id),
+                              `Department ${d.name} deactivated.`
+                            )
+                          }
+                          type="button"
+                        >
+                          Deactivate
+                        </button>
+                      ) : (
+                        <span className="muted" style={{ fontSize: 12 }}>Disabled</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {departments.length === 0 && (
+                  <tr>
+                    <td colSpan={5}>No records found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="card">
