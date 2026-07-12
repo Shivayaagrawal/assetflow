@@ -1,0 +1,42 @@
+---
+description: Thin controllers, fat services, repository pattern, no god classes
+globs: "**/{controllers,routes,handlers,services,repositories,domain}/**/*.{ts,js},**/*.{controller,service,repository}.ts"
+alwaysApply: false
+---
+
+# Backend Engineering
+
+## Rules
+
+- **Thin controllers**: Parse request, call service, map response. No business logic.
+- **Fat services**: Own workflows, orchestrate repositories, enforce business rules.
+- **Repository pattern**: All data access lives in repositories. No ORM/query logic in controllers or services.
+- **Domain services**: Pure domain logic that doesn't belong in entities or repositories.
+- **Single responsibility**: One reason to change per class/module.
+- **Composition over inheritance**: Prefer injecting collaborators over deep class hierarchies.
+- **No god classes**: Split when a class handles unrelated concerns.
+- **No circular dependencies**: Refactor shared logic into a lower layer or shared module.
+
+## Before Writing Code, Ask
+
+```
+Can this function become smaller?
+Can this service be split?
+Can this logic move downward (toward domain/repository/database)?
+```
+
+## Anti-patterns
+
+```typescript
+// ❌ BAD — business logic in controller
+async createBooking(req, res) {
+  const overlap = await prisma.booking.findFirst({ where: { ... } });
+  if (overlap) return res.status(400).json({ error: 'Overlap' });
+}
+
+// ✅ GOOD — controller delegates to service
+async createBooking(req, res) {
+  const result = await bookingService.create(req.user, req.body);
+  return res.status(result.status).json(result.body);
+}
+```

@@ -1,0 +1,43 @@
+---
+description: Layered architecture, module ownership, SOLID, DRY, KISS, YAGNI, domain boundaries
+alwaysApply: true
+---
+
+# Architecture
+
+## Layered Architecture (Dependency Rule)
+
+Dependencies flow downward only. Upper layers may depend on lower layers; never the reverse.
+
+```
+Presentation → Application → Domain → Repository → Database
+```
+
+## Module Ownership
+
+Before adding logic, ask:
+
+- Can this module own this logic?
+- Is there duplicate business logic elsewhere?
+- Can another module do this instead?
+
+## Principles
+
+- **SOLID**: Single responsibility, open/closed, Liskov substitution, interface segregation, dependency inversion
+- **DRY**: One source of truth for business rules
+- **KISS**: Simplest solution that satisfies the requirement
+- **YAGNI**: Build for today, not hypothetical futures
+- **Domain boundaries**: Features own their workflows; shared code lives in shared modules, not leaked across domains
+- **Feature ownership**: A module owns its domain concepts end-to-end through the stack
+
+## Solution Priority (Odoo Engineering Mindset)
+
+When implementing business logic, evaluate solutions in this order:
+
+1. PostgreSQL feature (constraint, FK, index, view, transaction)
+2. Prisma capability
+3. Application service
+4. Utility/helper
+5. External library
+
+Do not introduce a third-party dependency unless the first four options are insufficient.

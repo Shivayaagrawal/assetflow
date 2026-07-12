@@ -1,0 +1,58 @@
+---
+description: REST conventions, consistent response envelope, correct HTTP status codes
+globs: "**/{routes,controllers,handlers,api}/**/*.{ts,js}"
+alwaysApply: false
+---
+
+# API Design
+
+## REST Only
+
+Use standard HTTP verbs:
+
+```
+GET    — read
+POST   — create
+PATCH  — partial update
+DELETE — remove
+```
+
+## Consistent Response Envelope
+
+Every response uses the same shape:
+
+```typescript
+{
+  success: boolean;
+  data?: T;
+  error?: { code: string; message: string };
+  meta?: { page?: number; total?: number; [key: string]: unknown };
+}
+```
+
+## HTTP Status Codes
+
+| Situation | Code |
+|-----------|------|
+| Success (read/create) | 200, 201 |
+| Validation error | 400 |
+| Unauthorized | 401 |
+| Forbidden | 403 |
+| Not found | 404 |
+| Conflict (constraint violation) | 409 |
+| Server error | 500 |
+
+**Never return 200 with an error.** If the operation failed, use the appropriate 4xx/5xx code.
+
+## Examples
+
+```typescript
+// ❌ BAD
+return res.status(200).json({ success: false, error: 'Not found' });
+
+// ✅ GOOD
+return res.status(404).json({
+  success: false,
+  error: { code: 'NOT_FOUND', message: 'Asset not found' },
+});
+```

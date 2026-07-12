@@ -1,0 +1,51 @@
+---
+description: Services own workflows — repositories never call repositories
+globs: "**/services/**/*.{ts,js},**/*.service.ts,**/repositories/**/*.{ts,js},**/*.repository.ts"
+alwaysApply: false
+---
+
+# Services & Repositories
+
+## Every Service Must Answer
+
+```
+Why does this service exist?
+```
+
+If you cannot state its purpose in one sentence, split it.
+
+## Responsibilities
+
+| Layer | Owns |
+|-------|------|
+| **Services** | Workflows, orchestration, business rules, transaction boundaries |
+| **Repositories** | Data access only — queries, inserts, updates, deletes |
+
+## Rules
+
+- Services orchestrate one or more repositories.
+- Repositories **never** call another repository.
+- Services **can** call multiple repositories.
+- Business rules live in services (or domain layer), not in repositories.
+- Transaction boundaries are opened in services, not repositories.
+
+## Examples
+
+```typescript
+// ❌ BAD — repository calls another repository
+class BookingRepository {
+  async create(data) {
+    const asset = await assetRepository.findById(data.assetId); // violation
+    return prisma.booking.create({ data });
+  }
+}
+
+// ✅ GOOD — service orchestrates
+class BookingService {
+  async create(userId, data) {
+    const asset = await this.assetRepo.findById(data.assetId);
+    if (!asset) throw new NotFoundError('Asset');
+    return this.bookingRepo.create({ ...data, createdBy: userId });
+  }
+}
+```

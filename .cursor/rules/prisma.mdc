@@ -1,0 +1,51 @@
+---
+description: Prisma only in repositories — no N+1, selective projections, single client
+globs: "**/*.{prisma,ts},**/repositories/**"
+alwaysApply: false
+---
+
+# Prisma
+
+## Rules
+
+- **No Prisma outside repositories**: Services and controllers never import `PrismaClient` directly.
+- **Never instantiate PrismaClient twice**: Use a single shared instance (singleton module).
+- **Select only required columns**: Use `select`, not `include`, when you don't need full records.
+- **Never use `include` blindly**: Every relation in `include` must be justified.
+- **Avoid N+1**: Batch with `findMany` + `in`, or use a single query with joins/`include` where appropriate.
+
+## Before Writing a Query, Ask
+
+```
+Can this query be simplified?
+Can this projection be smaller?
+Do we need every relation?
+Can this batch instead of loop?
+```
+
+## Examples
+
+```typescript
+// ❌ BAD — N+1 in a loop
+for (const asset of assets) {
+  asset.bookings = await prisma.booking.findMany({ where: { assetId: asset.id } });
+}
+
+// ✅ GOOD — one query, map in memory
+const bookings = await prisma.booking.findMany({
+  where: { assetId: { in: assets.map(a => a.id) } },
+  select: { id: true, assetId: true, startAt: true, endAt: true },
+});
+const byAsset = groupBy(bookings, 'assetId');
+```
+
+```typescript
+// ❌ BAD — full record when only name needed
+const user = await prisma.user.findUnique({ where: { id } });
+
+// ✅ GOOD — minimal projection
+const user = await prisma.user.findUnique({
+  where: { id },
+  select: { id: true, name: true, departmentId: true },
+});
+```
