@@ -13,8 +13,10 @@ import { createNotification } from "@/features/notifications/create-notification
 import { logActivity } from "@/features/activity-log/log-activity";
 import {
   allocateAssetSchema,
+  requestTransferSchema,
   returnAssetSchema,
   type AllocateAssetInput,
+  type RequestTransferInput,
   type ReturnAssetInput,
 } from "./schemas";
 
@@ -23,6 +25,21 @@ type AllocationActionResult =
       success: true;
       data: {
         allocationId: string;
+      };
+    }
+  | {
+      success: false;
+      error: {
+        code: string;
+        message: string;
+      };
+    };
+
+type TransferActionResult =
+  | {
+      success: true;
+      data: {
+        transferRequestId: string;
       };
     }
   | {
@@ -43,7 +60,7 @@ function startOfToday() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-function authError(error: unknown): AllocationActionResult | null {
+function authError(error: unknown): Extract<AllocationActionResult, { success: false }> | null {
   if (error instanceof Error && error.message === "UNAUTHORIZED") {
     return {
       success: false,
@@ -283,6 +300,156 @@ export async function returnAsset(
       error: {
         code: "GEN_003",
         message: "Unable to return asset",
+      },
+    };
+  }
+}
+
+export async function requestTransfer(
+  input: RequestTransferInput
+): Promise<TransferActionResult> {
+  const parsed = requestTransferSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: {
+        code: "GEN_001",
+        message: parsed.error.issues[0]?.message ?? "Validation failed",
+      },
+    };
+  }
+
+  try {
+    const session = await requireRole("ASSET_MANAGER");
+    const actor = session.user as { id: string };
+
+    return await prisma.$transaction(async (tx) => {
+      const allocation = await tx.allocation.findUnique({
+        where: { id: parsed.data.allocationId },
+        include: {
+          asset: { select: { id: true, name: true, status: true } },
+          holderEmployee: { select: { id: true, status: true } },
+          transferRequests: {
+            where: { status: "REQUESTED" },
+            select: { id: true },
+            take: 1,
+          },
+        },
+      });
+
+      if (!allocation) {
+        return {
+          success: false,
+          error: {
+            code: "ALLOC_001",
+            message: "Allocation not found",
+          },
+        };
+      }
+
+      if (
+        allocation.status !== AllocationStatus.ACTIVE ||
+        allocation.asset.status !== AssetStatus.ALLOCATED
+      ) {
+        return {
+          success: false,
+          error: {
+            code: "ALLOC_008",
+            message: "Only currently allocated assets can be transferred",
+          },
+        };
+      }
+
+      if (!allocation.holderEmployeeId || !allocation.holderEmployee) {
+        return {
+          success: false,
+          error: {
+            code: "ALLOC_009",
+            message: "Only employee-held assets can be transferred in this milestone",
+          },
+        };
+      }
+
+      if (allocation.holderEmployeeId === parsed.data.toEmployeeId) {
+        return {
+          success: false,
+          error: {
+            code: "ALLOC_004",
+            message: "Cannot transfer to the same employee",
+          },
+        };
+      }
+
+      if (allocation.transferRequests.length > 0) {
+        return {
+          success: false,
+          error: {
+            code: "ALLOC_010",
+            message: "This asset already has a pending transfer request",
+          },
+        };
+      }
+
+      const targetEmployee = await tx.user.findUnique({
+        where: { id: parsed.data.toEmployeeId },
+        select: { id: true, status: true },
+      });
+
+      if (!targetEmployee || targetEmployee.status !== UserStatus.ACTIVE) {
+        return {
+          success: false,
+          error: {
+            code: "ALLOC_005",
+            message: "Employee not found or inactive",
+          },
+        };
+      }
+
+      const transfer = await tx.transferRequest.create({
+        data: {
+          allocationId: allocation.id,
+          fromEmployeeId: allocation.holderEmployeeId,
+          toEmployeeId: targetEmployee.id,
+          reason: parsed.data.reason,
+          status: "REQUESTED",
+        },
+        select: { id: true },
+      });
+
+      await logActivity(tx, {
+        actorId: actor.id,
+        actionType: "TRANSFER_REQUESTED",
+        targetEntityType: "TransferRequest",
+        targetEntityId: transfer.id,
+        description: `Requested transfer for ${allocation.asset.name}`,
+        newValue: {
+          allocationId: allocation.id,
+          fromEmployeeId: allocation.holderEmployeeId,
+          toEmployeeId: targetEmployee.id,
+        },
+      });
+
+      return {
+        success: true,
+        data: {
+          transferRequestId: transfer.id,
+        },
+      };
+    });
+  } catch (error) {
+    const knownAuthError = authError(error);
+    if (knownAuthError) {
+      return {
+        success: false,
+        error: knownAuthError.error,
+      };
+    }
+
+    return {
+      success: false,
+      error: {
+        code: "GEN_003",
+        message: "Unable to request transfer",
       },
     };
   }

@@ -1,9 +1,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { allocateAsset, returnAsset } from "@/features/allocation/actions";
+import {
+  allocateAsset,
+  requestTransfer,
+  returnAsset,
+} from "@/features/allocation/actions";
 import {
   listActiveAllocations,
   listActiveEmployeesForAllocation,
+  listPendingTransferRequestsForManager,
+  listTransferableAllocations,
   listAvailableAssetsForAllocation,
 } from "@/features/allocation/queries";
 
@@ -19,6 +25,8 @@ function allocationMessage(code?: string) {
       return { kind: "success", text: "Asset allocated successfully." };
     case "returned":
       return { kind: "success", text: "Asset returned successfully." };
+    case "transfer-requested":
+      return { kind: "success", text: "Transfer request created successfully." };
     default:
       return null;
   }
@@ -58,6 +66,24 @@ async function closeAllocation(formData: FormData) {
   redirect("/allocation?status=returned");
 }
 
+async function createTransferRequest(formData: FormData) {
+  "use server";
+
+  const result = await requestTransfer({
+    allocationId: String(formData.get("allocationId") ?? ""),
+    toEmployeeId: String(formData.get("toEmployeeId") ?? ""),
+    reason: String(formData.get("reason") ?? ""),
+  });
+
+  if (!result.success) {
+    redirect(`/allocation?error=${encodeURIComponent(result.error.message)}`);
+  }
+
+  revalidatePath("/allocation");
+  revalidatePath("/allocation/approvals");
+  redirect("/allocation?status=transfer-requested");
+}
+
 export default async function AllocationPage({
   searchParams,
 }: {
@@ -68,10 +94,13 @@ export default async function AllocationPage({
   const status = firstParam(params.status);
   const message = allocationMessage(status);
 
-  const [assets, employees, allocations] = await Promise.all([
+  const [assets, employees, allocations, transferableAllocations, pendingTransfers] =
+    await Promise.all([
     listAvailableAssetsForAllocation(),
     listActiveEmployeesForAllocation(),
     listActiveAllocations(),
+    listTransferableAllocations(),
+    listPendingTransferRequestsForManager(),
   ]);
 
   return (
@@ -156,9 +185,95 @@ export default async function AllocationPage({
               Assets with active allocations are rejected until they are returned.
             </p>
             <p className="muted" style={{ margin: 0 }}>
-              Transfer workflow is intentionally left for the next milestone.
+              Transfer requests use REQUESTED as the pending state.
             </p>
           </div>
+        </section>
+      </section>
+
+      <section className="grid two" style={{ marginBottom: 18 }}>
+        <form action={createTransferRequest} className="card form-grid">
+          <h2 className="card-title span-full">Request Transfer</h2>
+          <label className="span-full">
+            Allocated Asset
+            <select
+              disabled={transferableAllocations.length === 0}
+              name="allocationId"
+              required
+            >
+              <option value="">Select allocated asset</option>
+              {transferableAllocations.map((allocation) => (
+                <option key={allocation.id} value={allocation.id}>
+                  {allocation.asset.assetTag} - {allocation.asset.name} - held by{" "}
+                  {allocation.holderEmployee?.name ?? "Unknown"}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="span-full">
+            New Employee
+            <select disabled={employees.length === 0} name="toEmployeeId" required>
+              <option value="">Select new employee</option>
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.name} - {employee.email}
+                  {employee.department?.name ? ` - ${employee.department.name}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="span-full">
+            Reason
+            <input
+              name="reason"
+              placeholder="Optional reason for the transfer"
+            />
+          </label>
+
+          <button
+            className="span-full"
+            disabled={transferableAllocations.length === 0 || employees.length === 0}
+            type="submit"
+          >
+            Request Transfer
+          </button>
+
+          {transferableAllocations.length === 0 ? (
+            <p className="muted span-full" style={{ margin: 0 }}>
+              No employee-held allocated assets can be transferred right now.
+            </p>
+          ) : null}
+        </form>
+
+        <section className="card">
+          <h2 className="card-title">Pending Transfer Requests</h2>
+          {pendingTransfers.length === 0 ? (
+            <p className="muted" style={{ margin: 0 }}>
+              No pending transfer requests.
+            </p>
+          ) : (
+            <div className="list">
+              {pendingTransfers.map((transfer) => (
+                <article className="list-item" key={transfer.id}>
+                  <strong>
+                    {transfer.allocation.asset.assetTag} - {transfer.allocation.asset.name}
+                  </strong>
+                  <p className="muted" style={{ margin: "4px 0 0" }}>
+                    Current holder:{" "}
+                    {transfer.allocation.holderEmployee?.name ??
+                      transfer.allocation.holderDepartment?.name ??
+                      "Unknown"}{" "}
+                    → Requested holder: {transfer.toEmployee.name}
+                  </p>
+                  <p className="muted" style={{ margin: "4px 0 0" }}>
+                    Requested {transfer.requestedAt.toLocaleDateString()} - {transfer.status}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       </section>
 

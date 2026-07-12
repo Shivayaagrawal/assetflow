@@ -88,6 +88,94 @@ export async function listActiveAllocations() {
   });
 }
 
+export async function listTransferableAllocations() {
+  await requireRole("ASSET_MANAGER");
+
+  return prisma.allocation.findMany({
+    where: {
+      status: AllocationStatus.ACTIVE,
+      holderEmployeeId: { not: null },
+      asset: {
+        status: AssetStatus.ALLOCATED,
+      },
+    },
+    orderBy: {
+      allocatedAt: "desc",
+    },
+    select: {
+      id: true,
+      asset: {
+        select: {
+          assetTag: true,
+          name: true,
+          location: true,
+        },
+      },
+      holderEmployee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+}
+
+export async function listPendingTransferRequestsForManager() {
+  await requireRole("ASSET_MANAGER");
+
+  return prisma.transferRequest.findMany({
+    where: {
+      status: "REQUESTED",
+    },
+    orderBy: {
+      requestedAt: "asc",
+    },
+    include: {
+      allocation: {
+        include: {
+          asset: {
+            select: {
+              id: true,
+              assetTag: true,
+              name: true,
+              location: true,
+            },
+          },
+          holderEmployee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          holderDepartment: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+      fromEmployee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      toEmployee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+}
+
 export async function listPendingTransferApprovals(departmentId?: string) {
   const session = await requireRole("DEPARTMENT_HEAD", "ASSET_MANAGER", "ADMIN");
   const user = session.user;

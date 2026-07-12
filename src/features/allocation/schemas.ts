@@ -27,5 +27,15 @@ export const returnAssetSchema = z.object({
   status: z.nativeEnum(AllocationStatus).default(AllocationStatus.RETURNED),
 });
 
+export const requestTransferSchema = z.object({
+  allocationId: requiredId("Allocation"),
+  toEmployeeId: requiredId("New employee"),
+  reason: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().max(500, "Reason must be 500 characters or less").optional()
+  ),
+});
+
 export type AllocateAssetInput = z.input<typeof allocateAssetSchema>;
 export type ReturnAssetInput = z.input<typeof returnAssetSchema>;
+export type RequestTransferInput = z.input<typeof requestTransferSchema>;
