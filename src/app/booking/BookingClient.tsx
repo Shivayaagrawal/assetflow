@@ -7,6 +7,7 @@ import {
   cancelBooking,
   createEmployeeBooking,
 } from "@/modules/booking/actions/booking.actions";
+import { formatDateTime } from "@/shared/format/date";
 
 type BookableAsset = {
   id: string;
@@ -204,8 +205,8 @@ export function BookingClient({
                       {booking.asset.assetTag} - {booking.asset.name}
                     </strong>
                     <p className="muted" style={{ margin: "4px 0 0" }}>
-                      {new Date(booking.startTime).toLocaleString()} -{" "}
-                      {new Date(booking.endTime).toLocaleString()} ({booking.status})
+                      {formatDateTime(booking.startTime)} -{" "}
+                      {formatDateTime(booking.endTime)} ({booking.status})
                     </p>
                     {booking.status === "UPCOMING" ? (
                       <button

@@ -48,7 +48,12 @@ export class CreateBookingService {
         action: "BOOKING_CREATED",
         entityType: "Booking",
         entityId: booking.id,
-        newValue: { startTime: input.startTime, endTime: input.endTime },
+        newValue: {
+          description: `${user.name} booked ${asset.assetTag} · ${asset.name}`,
+          assetTag: asset.assetTag,
+          startTime: input.startTime,
+          endTime: input.endTime,
+        },
       });
 
       return booking;

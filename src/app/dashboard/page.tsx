@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { RecentActivityFeed } from "@/components/RecentActivityFeed";
+import { listRecentActivity } from "@/modules/activity/queries/activity.queries";
 import { getEmployeeDashboard } from "@/modules/reporting/queries/employee-dashboard.query";
 import { getDepartmentDashboard } from "@/modules/reporting/queries/dashboard.query";
 import { assertRole, requireSessionUser } from "@/shared/auth/session";
+import { formatDate, formatDateTime } from "@/shared/format/date";
 import { prisma } from "@/lib/db";
 
 export default async function DashboardPage() {
   const user = await requireSessionUser();
 
   if (user.role === "EMPLOYEE") {
-    const dashboard = await getEmployeeDashboard();
+    const [dashboard, recentActivity] = await Promise.all([
+      getEmployeeDashboard(),
+      listRecentActivity(10),
+    ]);
 
     return (
       <main className="app-shell">
@@ -23,6 +28,7 @@ export default async function DashboardPage() {
             <Link href="/allocation/my">My allocations</Link>
             <Link href="/booking">Book resource</Link>
             <Link href="/maintenance">Maintenance</Link>
+            <Link href="/activity">Activity</Link>
           </nav>
         </header>
 
@@ -50,7 +56,7 @@ export default async function DashboardPage() {
               <ListItem
                 key={booking.id}
                 title={`${booking.asset.assetTag} - ${booking.asset.name}`}
-                meta={`${booking.startTime.toLocaleString()} - ${booking.endTime.toLocaleString()}`}
+                meta={`${formatDateTime(booking.startTime)} - ${formatDateTime(booking.endTime)}`}
               />
             ))}
             {dashboard.bookings.length === 0 && <Empty />}
@@ -74,6 +80,19 @@ export default async function DashboardPage() {
             {dashboard.maintenanceRequests.length === 0 &&
               dashboard.transferRequests.length === 0 && <Empty />}
           </Panel>
+        </section>
+
+        <section className="card" style={{ marginTop: 24 }}>
+          <div className="page-header" style={{ marginBottom: 12 }}>
+            <h2 className="card-title" style={{ margin: 0 }}>
+              Recent activity
+            </h2>
+            <Link href="/activity">View all</Link>
+          </div>
+          <RecentActivityFeed
+            emptyLabel="Your bookings, allocations, and requests will appear here."
+            items={recentActivity}
+          />
         </section>
       </main>
     );
@@ -142,7 +161,7 @@ export default async function DashboardPage() {
                 <ListItem
                   key={log.id}
                   title={title}
-                  meta={`Performed by ${log.actor?.name ?? "System"} on ${log.createdAt.toLocaleString()}`}
+                  meta={`Performed by ${log.actor?.name ?? "System"} on ${formatDateTime(log.createdAt)}`}
                 />
               );
             })}
@@ -229,7 +248,7 @@ export default async function DashboardPage() {
               title={`${allocation.asset.assetTag} - ${allocation.asset.name}`}
               meta={
                 allocation.expectedReturnDate
-                  ? `Due ${allocation.expectedReturnDate.toLocaleDateString()}`
+                  ? `Due ${formatDate(allocation.expectedReturnDate)}`
                   : "Due date missing"
               }
             />

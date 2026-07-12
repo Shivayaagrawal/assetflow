@@ -8,7 +8,7 @@ import {
   listAuditCycles,
   verifyAsset,
 } from "@/modules/audit/actions/audit.actions";
-import { listDepartments } from "@/modules/organization/queries/organization.queries";
+import { DepartmentPicker } from "@/components/DepartmentPicker";
 import { requireRole } from "@/lib/session";
 
 async function createCycle(formData: FormData) {
@@ -60,7 +60,6 @@ export default async function AuditPage({
   const { user } = await requireRole("ASSET_MANAGER", "ADMIN", "DEPARTMENT_HEAD", "EMPLOYEE");
   const params = await searchParams;
   const cycles = await listAuditCycles();
-  const departments = await listDepartments();
   const auditors = await listAuditorCandidates();
 
   const selectedCycleId = params.cycle ?? cycles[0]?.id;
@@ -105,14 +104,11 @@ export default async function AuditPage({
             </label>
             <label className="span-full">
               Department scope
-              <select name="scopeDepartmentId" defaultValue="">
-                <option value="">All departments</option>
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
+              <DepartmentPicker
+                includeEmpty
+                name="scopeDepartmentId"
+                placeholder="All departments"
+              />
             </label>
             <label>
               Start

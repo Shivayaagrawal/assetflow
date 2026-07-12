@@ -49,6 +49,22 @@ export class TransferRequestRepository {
     });
   }
 
+  private pendingInclude() {
+    return {
+      allocation: {
+        include: {
+          asset: {
+            select: { id: true, name: true, assetTag: true, location: true },
+          },
+          holderEmployee: { select: { id: true, name: true, email: true } },
+          holderDepartment: { select: { id: true, name: true } },
+        },
+      },
+      fromEmployee: { select: { id: true, name: true, email: true } },
+      toEmployee: { select: { id: true, name: true, email: true } },
+    } as const;
+  }
+
   listPendingByDepartment(departmentId: string) {
     return this.db.transferRequest.findMany({
       where: {
@@ -61,19 +77,15 @@ export class TransferRequestRepository {
         },
       },
       orderBy: { createdAt: "asc" },
-      include: {
-        allocation: {
-          include: {
-            asset: {
-              select: { id: true, name: true, assetTag: true, location: true },
-            },
-            holderEmployee: { select: { id: true, name: true, email: true } },
-            holderDepartment: { select: { id: true, name: true } },
-          },
-        },
-        fromEmployee: { select: { id: true, name: true, email: true } },
-        toEmployee: { select: { id: true, name: true, email: true } },
-      },
+      include: this.pendingInclude(),
+    });
+  }
+
+  listPendingAll() {
+    return this.db.transferRequest.findMany({
+      where: { status: "REQUESTED" },
+      orderBy: { createdAt: "asc" },
+      include: this.pendingInclude(),
     });
   }
 }

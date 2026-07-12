@@ -14,9 +14,15 @@ type CategoryOption = {
   name: string;
 };
 
+type DepartmentOption = {
+  id: string;
+  name: string;
+};
+
 type FormState = {
   name: string;
   categoryId: string;
+  departmentId: string;
   serialNumber: string;
   acquisitionDate: string;
   acquisitionCost: string;
@@ -29,6 +35,7 @@ type FieldErrors = Partial<Record<keyof FormState, string>>;
 const initialFormState: FormState = {
   name: "",
   categoryId: "",
+  departmentId: "",
   serialNumber: "",
   acquisitionDate: "",
   acquisitionCost: "",
@@ -59,8 +66,10 @@ function validateForm(form: FormState) {
 
 export function AssetRegistrationForm({
   categories,
+  departments,
 }: {
   categories: CategoryOption[];
+  departments: DepartmentOption[];
 }) {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -127,6 +136,7 @@ export function AssetRegistrationForm({
       const result = await registerAsset({
         name: form.name,
         categoryId: form.categoryId,
+        departmentId: form.departmentId || undefined,
         serialNumber: form.serialNumber,
         acquisitionDate: new Date(form.acquisitionDate),
         acquisitionCost: Number(form.acquisitionCost),
@@ -249,6 +259,22 @@ export function AssetRegistrationForm({
             {fieldErrors.categoryId ? (
               <FieldError>{fieldErrors.categoryId}</FieldError>
             ) : null}
+          </label>
+
+          <label>
+            <span style={labelStyle}>Department</span>
+            <select
+              style={inputStyle}
+              value={form.departmentId}
+              onChange={(event) => updateField("departmentId", event.target.value)}
+            >
+              <option value="">Unassigned</option>
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label>

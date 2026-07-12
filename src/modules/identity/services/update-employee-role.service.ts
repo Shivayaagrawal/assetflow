@@ -56,7 +56,10 @@ export class UpdateEmployeeRoleService {
         entityType: "User",
         entityId: updated.id,
         oldValue: previous,
-        newValue: updated,
+        newValue: {
+          ...updated,
+          description: `${user.name} set ${updated.name} (${updated.email}) to ${updated.role}`,
+        },
       });
 
       return updated;

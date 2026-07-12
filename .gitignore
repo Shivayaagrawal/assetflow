@@ -145,3 +145,6 @@ vite.config.ts.timestamp-*
 # Local asset uploads (demo storage — not committed)
 /public/uploads/*
 !/public/uploads/.gitkeep
+
+# Cursor IDE rules (local only)
+.cursor/rules/

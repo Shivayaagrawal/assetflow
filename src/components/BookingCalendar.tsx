@@ -1,6 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {
+  formatCalendarDay,
+  formatDateTime,
+  formatTime,
+  toAppDate,
+} from "@/shared/format/date";
 
 type BookableAsset = {
   id: string;
@@ -19,10 +25,6 @@ type CalendarBooking = {
 
 const HOURS = Array.from({ length: 12 }, (_, index) => index + 8);
 
-function toDate(value: string | Date) {
-  return value instanceof Date ? value : new Date(value);
-}
-
 function toDateTimeLocalValue(date: Date) {
   const pad = (part: number) => String(part).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -33,8 +35,8 @@ function bookingOverlapsHour(booking: CalendarBooking, day: Date, hour: number) 
   slotStart.setHours(hour, 0, 0, 0);
   const slotEnd = new Date(day);
   slotEnd.setHours(hour + 1, 0, 0, 0);
-  const start = toDate(booking.startTime);
-  const end = toDate(booking.endTime);
+  const start = toAppDate(booking.startTime);
+  const end = toAppDate(booking.endTime);
   return start < slotEnd && end > slotStart;
 }
 
@@ -119,11 +121,7 @@ export function BookingCalendar({
               <th>Time</th>
               {days.map((day) => (
                 <th key={day.toISOString()}>
-                  {day.toLocaleDateString(undefined, {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  })}
+                  {formatCalendarDay(day)}
                 </th>
               ))}
             </tr>
@@ -147,19 +145,13 @@ export function BookingCalendar({
                       {booking ? (
                         <div
                           className="calendar-slot booked"
-                          title={`${toDate(booking.startTime).toLocaleString()} - ${toDate(booking.endTime).toLocaleString()}`}
+                          title={`${formatDateTime(booking.startTime)} - ${formatDateTime(booking.endTime)}`}
                         >
                           <strong>{booking.bookedBy?.name ?? "Booked"}</strong>
                           <span>
-                            {toDate(booking.startTime).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {formatTime(booking.startTime)}
                             {" - "}
-                            {toDate(booking.endTime).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {formatTime(booking.endTime)}
                           </span>
                         </div>
                       ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDateTime } from "@/shared/format/date";
 import { getMyNotifications, getUnreadNotificationCount, markAsRead, markAllAsRead } from "@/modules/notification/actions/notification.actions";
 
 type Notification = {
@@ -116,7 +117,7 @@ export function NotificationList({
                   </span>
                   <strong style={{ display: "block", marginTop: 4 }}>{notif.message}</strong>
                   <small className="muted" style={{ display: "block", marginTop: 4 }}>
-                    {new Date(notif.createdAt).toLocaleString()}
+                    {formatDateTime(notif.createdAt)}
                   </small>
                 </div>
                 {!notif.isRead && (

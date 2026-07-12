@@ -1,3 +1,5 @@
+import { formatDateTime } from "@/shared/format/date";
+
 type ActivityItem = {
   id: string;
   action: string;
@@ -7,12 +9,35 @@ type ActivityItem = {
   newValue?: unknown;
 };
 
+const ACTION_LABELS: Record<string, string> = {
+  ASSET_REGISTERED: "registered an asset",
+  ASSET_ALLOCATED: "allocated an asset",
+  ASSET_RETURNED: "returned an asset",
+  BOOKING_CREATED: "created a booking",
+  BOOKING_CANCELLED: "cancelled a booking",
+  BOOKING_RESCHEDULED: "rescheduled a booking",
+  MAINTENANCE_RAISED: "raised a maintenance request",
+  MAINTENANCE_APPROVED: "approved maintenance",
+  MAINTENANCE_RESOLVED: "resolved maintenance",
+  TRANSFER_REQUESTED: "requested a transfer",
+  TRANSFER_APPROVED: "approved a transfer",
+  TRANSFER_REJECTED: "rejected a transfer",
+  EMPLOYEE_ROLE_UPDATED: "updated an employee role",
+  AUDIT_CYCLE_CREATED: "started an audit cycle",
+  AUDIT_CYCLE_CLOSED: "closed an audit cycle",
+};
+
 function formatActivityTitle(item: ActivityItem) {
   const newVal = item.newValue as Record<string, unknown> | null;
   if (newVal && typeof newVal === "object" && "description" in newVal) {
     return String(newVal.description);
   }
-  return item.action.replace(/_/g, " ");
+
+  const actor = item.actor?.name ?? "System";
+  const actionLabel =
+    ACTION_LABELS[item.action] ??
+    item.action.replace(/_/g, " ").toLowerCase();
+  return `${actor} ${actionLabel}`;
 }
 
 export function RecentActivityFeed({
@@ -33,7 +58,7 @@ export function RecentActivityFeed({
           <strong>{formatActivityTitle(item)}</strong>
           <p className="muted" style={{ margin: "4px 0 0" }}>
             {item.entityType} · {item.actor?.name ?? "System"} ·{" "}
-            {new Date(item.createdAt).toLocaleString()}
+            {formatDateTime(item.createdAt)}
           </p>
         </article>
       ))}

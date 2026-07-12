@@ -8,6 +8,7 @@ export const registerAssetSchema = z.object({
   acquisitionCost: z.coerce.number().min(0),
   location: z.string().min(1),
   isBookable: z.boolean().default(false),
+  departmentId: z.string().min(1).optional(),
   imageUrl: z
     .string()
     .refine((value) => value.startsWith("/uploads/assets/"), {

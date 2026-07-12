@@ -26,6 +26,9 @@ export class RegisterAssetService {
         assetTag,
         serialNumber: input.serialNumber,
         category: { connect: { id: input.categoryId } },
+        ...(input.departmentId
+          ? { department: { connect: { id: input.departmentId } } }
+          : {}),
         acquisitionDate: input.acquisitionDate,
         acquisitionCost: input.acquisitionCost,
         location: input.location,
@@ -39,7 +42,12 @@ export class RegisterAssetService {
         action: "ASSET_REGISTERED",
         entityType: "Asset",
         entityId: asset.id,
-        newValue: { status: asset.status },
+        newValue: {
+          description: `${user.name} registered ${asset.assetTag} · ${asset.name}`,
+          assetTag: asset.assetTag,
+          name: asset.name,
+          status: asset.status,
+        },
       });
 
       return asset;

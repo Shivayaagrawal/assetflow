@@ -52,13 +52,23 @@ export async function listDepartmentPeers() {
 
 export async function listPendingTransferApprovals(departmentId?: string) {
   const user = await requireSessionUser();
-  const scopedDepartmentId =
-    user.role === "DEPARTMENT_HEAD" ? user.departmentId : departmentId;
+  const repo = new TransferRequestRepository();
 
-  if (!scopedDepartmentId) {
-    throw new AuthorizationError("AUTH_007");
+  if (user.role === "ASSET_MANAGER" || user.role === "ADMIN") {
+    if (departmentId) {
+      assertDepartmentAccess(user, departmentId);
+      return repo.listPendingByDepartment(departmentId);
+    }
+    return repo.listPendingAll();
   }
 
-  assertDepartmentAccess(user, scopedDepartmentId);
-  return new TransferRequestRepository().listPendingByDepartment(scopedDepartmentId);
+  if (user.role === "DEPARTMENT_HEAD") {
+    if (!user.departmentId) {
+      throw new AuthorizationError("AUTH_007");
+    }
+    assertDepartmentAccess(user, user.departmentId);
+    return repo.listPendingByDepartment(user.departmentId);
+  }
+
+  throw new AuthorizationError("AUTH_007");
 }

@@ -3,13 +3,14 @@ import { notFound } from "next/navigation";
 import { AssetQRCode } from "@/components/AssetQRCode";
 import { getAssetDetail } from "@/modules/asset/queries/asset.queries";
 import { listAssetTimeline } from "@/modules/activity/queries/activity.queries";
+import { formatDate, formatDateTime } from "@/shared/format/date";
 
 type PageParams = {
   assetId: string;
 };
 
 function formatCurrency(value: { toString(): string }) {
-  return Number(value.toString()).toLocaleString("en-US", {
+  return Number(value.toString()).toLocaleString("en-IN", {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
   });
@@ -60,7 +61,7 @@ export default async function AssetDetailsPage({
               label="Acquisition Date"
               value={
                 asset.acquisitionDate
-                  ? asset.acquisitionDate.toLocaleDateString()
+                  ? formatDate(asset.acquisitionDate)
                   : "Not provided"
               }
             />
@@ -98,7 +99,7 @@ export default async function AssetDetailsPage({
                 <strong>{event.label}</strong>
                 <p className="muted" style={{ margin: "4px 0 0" }}>
                   {event.entityType} · {event.actor} ·{" "}
-                  {event.at.toLocaleString()}
+                  {formatDateTime(event.at)}
                 </p>
               </article>
             ))}

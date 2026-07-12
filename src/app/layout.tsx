@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
+import { AppNav } from "@/components/AppNav";
 import { LogoutButton } from "@/components/LogoutButton";
+import { UserIdentity } from "@/components/UserIdentity";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import type { UserRole } from "@prisma/client";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,6 +20,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
+  const sessionUser = session
+    ? await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { id: true, role: true, status: true },
+      })
+    : null;
+  const activeUser =
+    sessionUser?.status === "ACTIVE" ? sessionUser : null;
 
   return (
     <html lang="en">
@@ -28,24 +40,13 @@ export default async function RootLayout({
               <small>Operations Console</small>
             </span>
           </Link>
-          {session ? (
+          {activeUser ? (
             <>
-              <nav className="topnav" aria-label="Primary navigation">
-                <Link href="/dashboard">Dashboard</Link>
-                <Link href="/allocation/my">My Allocations</Link>
-                <Link href="/booking">Book Resource</Link>
-                <Link href="/maintenance">Maintenance</Link>
-                <Link href="/maintenance/queue">Maint. Queue</Link>
-                <Link href="/audit">Audit</Link>
-                <Link href="/allocation/approvals">Approvals</Link>
-                <Link href="/booking/department">Dept Booking</Link>
-                <Link href="/org-setup">Org Setup</Link>
-                <Link href="/reports">Reports</Link>
-                <Link href="/notifications">Notifications</Link>
-                <Link href="/activity">Activity</Link>
-                <Link href="/assets/new">Register Asset</Link>
-              </nav>
-              <LogoutButton />
+              <AppNav role={activeUser.role as UserRole} />
+              <div className="topbar-actions">
+                <UserIdentity userId={activeUser.id} />
+                <LogoutButton />
+              </div>
             </>
           ) : (
             <nav className="topnav" aria-label="Authentication">

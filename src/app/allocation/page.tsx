@@ -1,5 +1,7 @@
 import { revalidatePath } from "next/cache";
+import { formatDate } from "@/shared/format/date";
 import { redirect } from "next/navigation";
+import { AccessDenied } from "@/components/AccessDenied";
 import {
   allocateAsset,
   returnAsset,
@@ -13,6 +15,7 @@ import {
   listTransferableAllocations,
   getAllocationById,
 } from "@/modules/allocation/queries/allocation.queries";
+import { requireSessionUser } from "@/shared/auth/session";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -94,6 +97,17 @@ export default async function AllocationPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
+  const user = await requireSessionUser();
+
+  if (user.role !== "ASSET_MANAGER" && user.role !== "ADMIN") {
+    return (
+      <AccessDenied
+        message="Asset allocation is limited to asset managers and administrators."
+        title="Allocation & Transfer"
+      />
+    );
+  }
+
   const params = (await searchParams) ?? {};
   const error = firstParam(params.error);
   const status = firstParam(params.status);
@@ -293,7 +307,7 @@ export default async function AllocationPage({
                     → Requested holder: {transfer.toEmployee.name}
                   </p>
                   <p className="muted" style={{ margin: "4px 0 0" }}>
-                    Requested {transfer.requestedAt.toLocaleDateString()} - {transfer.status}
+                    Requested {formatDate(transfer.requestedAt)} - {transfer.status}
                   </p>
                 </article>
               ))}
@@ -342,10 +356,10 @@ export default async function AllocationPage({
                         allocation.holderDepartment?.name ??
                         "Unknown holder"}
                     </td>
-                    <td>{allocation.allocatedAt.toLocaleDateString()}</td>
+                    <td>{formatDate(allocation.allocatedAt)}</td>
                     <td>
                       {allocation.expectedReturnDate
-                        ? allocation.expectedReturnDate.toLocaleDateString()
+                        ? formatDate(allocation.expectedReturnDate)
                         : "Not set"}
                     </td>
                     <td>

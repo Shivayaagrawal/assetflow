@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { formatDate } from "@/shared/format/date";
 import Link from "next/link";
 import { MaintenancePriority, MaintenanceStatus } from "@prisma/client";
 import {
@@ -308,7 +309,7 @@ export default async function MaintenancePage() {
                       </span>
                       <p style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{req.description}</p>
                       <small className="muted" style={{ display: "block", marginTop: 6 }}>
-                        Raised by {req.raisedBy.name} on {req.createdAt.toLocaleDateString()}
+                        Raised by {req.raisedBy.name} on {formatDate(req.createdAt)}
                       </small>
                       {req.technicianName && (
                         <p style={{ margin: "6px 0 0", color: "#0969da" }}>
@@ -414,7 +415,7 @@ export default async function MaintenancePage() {
                   )}
                   {req.resolvedAt && (
                     <small className="muted" style={{ display: "block" }}>
-                      Resolved at {req.resolvedAt.toLocaleDateString()}
+                      Resolved at {formatDate(req.resolvedAt)}
                     </small>
                   )}
                 </article>

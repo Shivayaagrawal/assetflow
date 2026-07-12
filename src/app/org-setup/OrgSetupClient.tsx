@@ -7,6 +7,7 @@ import {
   createDepartment,
   deactivateDepartment,
 } from "@/modules/organization/actions/organization.actions";
+import { DepartmentSelect } from "@/components/DepartmentSelect";
 import { updateEmployeeRole } from "@/modules/identity/actions/identity.actions";
 
 type Department = {
@@ -113,12 +114,13 @@ export function OrgSetupClient({
           </label>
           <label>
             Parent
-            <select disabled={isPending} name="parentDepartmentId">
-              <option value="">None</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
+            <DepartmentSelect
+              departments={departments}
+              disabled={isPending}
+              includeEmpty
+              name="parentDepartmentId"
+              placeholder="None"
+            />
           </label>
           <label>
             Head
@@ -263,16 +265,14 @@ export function OrgSetupClient({
                         className="actions-row"
                       >
                         <input type="hidden" name="userId" value={emp.id} />
-                        <select
-                          disabled={isPending}
-                          name="departmentId"
+                        <DepartmentSelect
                           defaultValue={emp.departmentId ?? ""}
-                        >
-                          <option value="">Unassigned</option>
-                          {departments.map((d) => (
-                            <option key={d.id} value={d.id}>{d.name}</option>
-                          ))}
-                        </select>
+                          departments={departments}
+                          disabled={isPending}
+                          includeEmpty
+                          name="departmentId"
+                          placeholder="Unassigned"
+                        />
                         <select disabled={isPending} name="role" defaultValue={emp.role}>
                           <option value="EMPLOYEE">Employee</option>
                           <option value="DEPARTMENT_HEAD">Department Head</option>

@@ -3,9 +3,22 @@ import {
   listDepartments,
   listEmployeeDirectory,
 } from "@/modules/organization/queries/organization.queries";
+import { AccessDenied } from "@/components/AccessDenied";
+import { requireSessionUser } from "@/shared/auth/session";
 import { OrgSetupClient } from "./OrgSetupClient";
 
 export default async function OrgSetupPage() {
+  const user = await requireSessionUser();
+
+  if (user.role !== "ADMIN") {
+    return (
+      <AccessDenied
+        message="Organization setup is restricted to administrators. Sign in with an admin account or ask an admin to update your role."
+        title="Organization Setup"
+      />
+    );
+  }
+
   const [departments, categories, employees] = await Promise.all([
     listDepartments(),
     listAssetCategories(),

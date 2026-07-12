@@ -67,7 +67,11 @@ export class AllocateAssetService {
         action: "ASSET_ALLOCATED",
         entityType: "Asset",
         entityId: asset.id,
-        newValue: { allocationId: allocation.id, employeeId: input.employeeId },
+        newValue: {
+          description: `${user.name} allocated ${asset.assetTag} · ${asset.name}`,
+          allocationId: allocation.id,
+          employeeId: input.employeeId,
+        },
       });
 
       return allocation;

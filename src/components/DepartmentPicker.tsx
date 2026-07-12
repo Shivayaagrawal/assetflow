@@ -1,10 +1,14 @@
 import { listDepartments } from "@/modules/organization/queries/organization.queries";
+import { DepartmentSelect } from "@/components/DepartmentSelect";
 
 type DepartmentPickerProps = {
   name?: string;
   required?: boolean;
   defaultValue?: string;
   activeOnly?: boolean;
+  disabled?: boolean;
+  placeholder?: string;
+  includeEmpty?: boolean;
 };
 
 export async function DepartmentPicker({
@@ -12,17 +16,21 @@ export async function DepartmentPicker({
   required = false,
   defaultValue = "",
   activeOnly = true,
+  disabled = false,
+  placeholder = "Select department",
+  includeEmpty = true,
 }: DepartmentPickerProps) {
   const departments = await listDepartments({ activeOnly });
 
   return (
-    <select defaultValue={defaultValue} name={name} required={required}>
-      <option value="">Select department</option>
-      {departments.map((department) => (
-        <option key={department.id} value={department.id}>
-          {department.name}
-        </option>
-      ))}
-    </select>
+    <DepartmentSelect
+      departments={departments}
+      defaultValue={defaultValue}
+      disabled={disabled}
+      includeEmpty={includeEmpty}
+      name={name}
+      placeholder={placeholder}
+      required={required}
+    />
   );
 }

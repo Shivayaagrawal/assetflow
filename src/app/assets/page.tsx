@@ -4,7 +4,9 @@ import {
   getAssetDirectoryFilters,
   listAssets,
 } from "@/modules/asset/queries/asset.queries";
+import { AssetPolicy } from "@/modules/asset/policies/asset.policy";
 import { assetDirectoryFilterSchema } from "@/modules/asset/validators/asset-directory.schema";
+import { requireSessionUser } from "@/shared/auth/session";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -18,6 +20,8 @@ export default async function AssetDirectoryPage({
   searchParams?: Promise<SearchParams>;
 }) {
   const params = (await searchParams) ?? {};
+  const user = await requireSessionUser();
+  const canRegister = AssetPolicy.canRegister(user);
   const filters = assetDirectoryFilterSchema.parse({
     search: firstParam(params.search),
     status: firstParam(params.status),
@@ -43,9 +47,11 @@ export default async function AssetDirectoryPage({
           </p>
         </div>
         <nav className="nav-row">
-          <Link className="button" href="/assets/new">
-            Register asset
-          </Link>
+          {canRegister ? (
+            <Link className="button" href="/assets/new">
+              Register asset
+            </Link>
+          ) : null}
         </nav>
       </header>
 

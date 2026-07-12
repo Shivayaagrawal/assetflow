@@ -1,38 +1,28 @@
 import { getAssetRegistrationCategories } from "@/modules/asset/queries/asset.queries";
-import { requireRole } from "@/lib/session";
+import { AssetPolicy } from "@/modules/asset/policies/asset.policy";
+import { listDepartments } from "@/modules/organization/queries/organization.queries";
+import { AccessDenied } from "@/components/AccessDenied";
+import { requireSessionUser } from "@/shared/auth/session";
 import { AssetRegistrationForm } from "./AssetRegistrationForm";
 
 export default async function NewAssetPage() {
-  try {
-    await requireRole("ASSET_MANAGER");
-  } catch {
+  const user = await requireSessionUser();
+
+  if (!AssetPolicy.canRegister(user)) {
     return (
-      <main style={{ minHeight: "100vh", background: "#f7f8fa", padding: "32px" }}>
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #dfe4ea",
-            borderRadius: "8px",
-            margin: "0 auto",
-            maxWidth: "720px",
-            padding: "24px",
-          }}
-        >
-          <p style={{ color: "#b42318", fontWeight: 700, margin: "0 0 8px" }}>
-            Access denied
-          </p>
-          <h1 style={{ color: "#17202a", fontSize: "28px", margin: "0 0 8px" }}>
-            Asset Registration
-          </h1>
-          <p style={{ color: "#5f6b7a", margin: 0 }}>
-            Only Asset Managers can register assets.
-          </p>
-        </div>
-      </main>
+      <AccessDenied
+        currentRole={user.role}
+        message="Only asset managers and administrators can register assets. Ask an admin to promote your account in Organization Setup."
+        requiredRoles={["ASSET_MANAGER", "ADMIN"]}
+        title="Asset Registration"
+      />
     );
   }
 
-  const categories = await getAssetRegistrationCategories();
+  const [categories, departments] = await Promise.all([
+    getAssetRegistrationCategories(),
+    listDepartments({ activeOnly: true }),
+  ]);
 
   return (
     <main style={{ minHeight: "100vh", background: "#f7f8fa", padding: "32px" }}>
@@ -45,7 +35,7 @@ export default async function NewAssetPage() {
             Register Asset
           </h1>
         </div>
-        <AssetRegistrationForm categories={categories} />
+        <AssetRegistrationForm categories={categories} departments={departments} />
       </div>
     </main>
   );

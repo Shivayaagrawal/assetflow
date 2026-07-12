@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { bookResourceForDepartment } from "@/modules/booking/actions/booking.actions";
+import { formatDateTime } from "@/shared/format/date";
 
 type Asset = {
   id: string;
@@ -136,7 +137,7 @@ export function BookingClient({
                   {booking.asset.assetTag} — {booking.asset.name}
                 </strong>
                 <p className="muted" style={{ margin: "4px 0 0" }}>
-                  {new Date(booking.startTime).toLocaleString()} — {new Date(booking.endTime).toLocaleString()}
+                  {formatDateTime(booking.startTime)} — {formatDateTime(booking.endTime)}
                 </p>
               </article>
             ))}
