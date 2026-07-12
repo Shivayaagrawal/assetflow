@@ -34,6 +34,35 @@ export class AllocationRepository {
       },
     });
   }
+
+  findByHolder(holderEmployeeId: string) {
+    return this.db.allocation.findMany({
+      where: { holderEmployeeId },
+      orderBy: [{ status: "asc" }, { allocatedAt: "desc" }],
+      include: {
+        asset: {
+          select: {
+            id: true,
+            assetTag: true,
+            name: true,
+            location: true,
+            status: true,
+          },
+        },
+        transferRequests: {
+          where: { status: "REQUESTED" },
+          select: { id: true, status: true },
+        },
+      },
+    });
+  }
+
+  findActiveByHolderAndAsset(holderEmployeeId: string, assetId: string) {
+    return this.db.allocation.findFirst({
+      where: { holderEmployeeId, assetId, status: "ACTIVE" },
+      include: { asset: true },
+    });
+  }
 }
 
 export type AllocationEntity = Allocation;

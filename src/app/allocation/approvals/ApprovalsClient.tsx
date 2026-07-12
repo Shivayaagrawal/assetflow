@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { decideTransferRequest } from "@/features/allocation/actions";
+import { decideTransferRequest } from "@/modules/allocation/actions/transfer.actions";
 
 type Transfer = {
   id: string;

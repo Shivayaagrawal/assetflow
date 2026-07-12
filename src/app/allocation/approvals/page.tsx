@@ -1,4 +1,4 @@
-import { listPendingTransferApprovals } from "@/features/allocation/queries";
+import { listPendingTransferApprovals } from "@/modules/allocation/actions/transfer.actions";
 import { ApprovalsClient } from "./ApprovalsClient";
 
 export default async function TransferApprovalsPage() {
