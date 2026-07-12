@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import {
   createAssetCategory,
   createDepartment,
-  updateEmployeeRole,
   deactivateDepartment,
-} from "@/features/org-setup/actions";
+} from "@/modules/organization/actions/organization.actions";
+import { updateEmployeeRole } from "@/modules/identity/actions/identity.actions";
 
 type Department = {
   id: string;

@@ -21,3 +21,11 @@ export async function returnAssetAction(input: unknown) {
     return returnAssetService.execute(user, data);
   });
 }
+
+export async function allocateAsset(input: unknown) {
+  return allocateAssetAction(input);
+}
+
+export async function returnAsset(input: unknown) {
+  return returnAssetAction(input);
+}

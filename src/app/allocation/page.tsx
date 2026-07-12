@@ -2,16 +2,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   allocateAsset,
-  requestTransfer,
   returnAsset,
-} from "@/features/allocation/actions";
+} from "@/modules/allocation/actions/allocation.actions";
+import { requestTransfer } from "@/modules/allocation/actions/transfer.actions";
 import {
   listActiveAllocations,
   listActiveEmployeesForAllocation,
+  listAvailableAssetsForAllocation,
   listPendingTransferRequestsForManager,
   listTransferableAllocations,
-  listAvailableAssetsForAllocation,
-} from "@/features/allocation/queries";
+} from "@/modules/allocation/queries/allocation.queries";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

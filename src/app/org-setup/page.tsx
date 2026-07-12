@@ -2,7 +2,7 @@ import {
   listAssetCategories,
   listDepartments,
   listEmployeeDirectory,
-} from "@/features/org-setup/queries";
+} from "@/modules/organization/queries/organization.queries";
 import { OrgSetupClient } from "./OrgSetupClient";
 
 export default async function OrgSetupPage() {

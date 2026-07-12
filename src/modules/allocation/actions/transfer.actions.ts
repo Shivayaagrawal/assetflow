@@ -31,7 +31,7 @@ export async function decideTransferAction(input: unknown) {
 }
 
 export async function requestTransfer(input: unknown) {
-  return throwOnFailure(await requestTransferAction(input));
+  return requestTransferAction(input);
 }
 
 export async function decideTransferRequest(input: unknown) {
